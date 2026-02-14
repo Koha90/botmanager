@@ -3,7 +3,7 @@ name: Go CI
 on:
   push:
     branches: [ main ]
-  pull_requests:
+  pull_request:
     branches: [ main ]
 
 jons:
@@ -12,7 +12,7 @@ jons:
 
     steps:
       - name: Checkout repository
-        uses: actions/chekout@v4
+        uses: actions/checkout@v4
 
       - name: Setup Go
         uses: actions/setup Go
