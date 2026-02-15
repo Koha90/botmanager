@@ -22,8 +22,17 @@ jobs:
       - name: Download dependencies
         run: go mod download 
 
-      - name: Run test
-        run: go test -race -cover ./... 
+      - name: Run test with coverage
+        run: |
+          go test -race -coverprofile=coverage.out ./... 
+          go tool cover -func=coverage.out
+
+      - name: Enfore coverage threashold
+        run: |
+          total=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
+          echo "Total coverage: $total%"
+          threashold=95.0
+          awk -v total=$total - v threashold=$threashold 'BEGIN { if (total < threashold) exit 1 }'
 
       - name: Run go vet
         run: go vet ./...
