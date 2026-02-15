@@ -32,7 +32,7 @@ jobs:
           total=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
           echo "Total coverage: $total%"
           threashold=95.0
-          awk -v total=$total - v threashold=$threashold 'BEGIN { if (total < threashold) exit 1 }'
+          awk -v total=$total -v threashold=$threashold 'BEGIN { if (total < threashold) exit 1 }'
 
       - name: Run go vet
         run: go vet ./...
