@@ -28,7 +28,12 @@ jobs:
       - name: Run test with coverage
         run: |
           go test -race -coverprofile=coverage.out ./... 
-          go tool cover -func=coverage.out | tee coverage.txt
+          coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total coverage: $coverage%"
+          if (( $(echo "$coverage < 85" | bc -l) )); then
+            echo "Coverage is below 85%"
+            exit 2
+          fi
 
       - name: Enfore coverage threashold
         run: |
