@@ -7,6 +7,8 @@ import (
 	"botmanager/internal/service"
 )
 
+var _ service.OrderRepository = (*OrderRepo)(nil)
+
 type OrderRepo struct{}
 
 func NewOrderRepo() *OrderRepo {
@@ -32,5 +34,3 @@ func (o *OrderRepo) ListByCustomer(ctx context.Context, customerID int) ([]domai
 func (o *OrderRepo) Update(ctx context.Context, order *domain.Order) error {
 	panic("unimplemented")
 }
-
-var _ service.OrderRepository = (*OrderRepo)(nil)

@@ -95,7 +95,7 @@ func (s *OrderService) Confirm(ctx context.Context, id int) error {
 		}
 
 		events := order.PullEvents()
-		s.bus.Publish(events...)
+		s.bus.Publish(ctx, events...)
 
 		s.logger.Info("order confirmed successfully", "order_id", id)
 

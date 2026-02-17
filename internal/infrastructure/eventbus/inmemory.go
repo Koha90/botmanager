@@ -2,24 +2,49 @@
 package eventbus
 
 import (
+	"context"
 	"log/slog"
+	"sync"
 
 	"botmanager/internal/domain"
+	"botmanager/internal/service"
 )
 
 type InMemoryBus struct {
-	logger *slog.Logger
+	mu       sync.RWMutex
+	handlers map[string][]service.EventHandler
+	logger   *slog.Logger
 }
 
 func New(logger *slog.Logger) *InMemoryBus {
-	return &InMemoryBus{logger: logger}
+	return &InMemoryBus{
+		handlers: make(map[string][]service.EventHandler),
+		logger:   logger,
+	}
 }
 
-func (b *InMemoryBus) Publish(events ...domain.DomainEvent) {
+func (b *InMemoryBus) Subscribe(name string, h service.EventHandler) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.handlers[name] = append(b.handlers[name], h)
+}
+
+func (b *InMemoryBus) Publish(ctx context.Context, events ...domain.DomainEvent) {
 	for _, e := range events {
-		b.logger.Info(
-			"domain event published",
-			"event", e.EventName(),
-		)
+		name := e.Name()
+
+		b.mu.RLock()
+		handlers := b.handlers[name]
+		b.mu.RUnlock()
+
+		for _, h := range handlers {
+			if err := h(ctx, e); err != nil {
+				b.logger.Error("event handler failed",
+					"event", name,
+					"error", err,
+				)
+			}
+		}
 	}
 }

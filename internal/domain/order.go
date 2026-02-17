@@ -57,11 +57,13 @@ func (o *Order) Confirm() error {
 
 func (o *Order) Cancel() error {
 	if !o.status.CanCancel() {
-		return errors.New("confirmed order cannot be canceled")
+		return ErrInvalidState
 	}
 
 	o.status = StatusCancelled
 	o.version++
+
+	o.addEvent(NewOrderCanceled(o.id))
 
 	return nil
 }
@@ -70,4 +72,8 @@ func (o *Order) PullEvents() []DomainEvent {
 	events := o.events
 	o.events = nil
 	return events
+}
+
+func (o *Order) addEvent(event DomainEvent) {
+	o.events = append(o.events, event)
 }

@@ -1,7 +1,14 @@
 package service
 
-import "botmanager/internal/domain"
+import (
+	"context"
+
+	"botmanager/internal/domain"
+)
 
 type EventBus interface {
-	Publish(events ...domain.DomainEvent)
+	Publish(ctx context.Context, events ...domain.DomainEvent)
+	Subscribe(eventName string, handler EventHandler)
 }
+
+type EventHandler func(ctx context.Context, event domain.DomainEvent) error
