@@ -1,6 +1,7 @@
 package botmanager
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -20,6 +21,20 @@ func newFakeRunner() *fakeRunner {
 		stopped: make(map[string]bool),
 	}
 }
+
+type ctxRunner struct {
+	done chan string
+}
+
+func newCtxRunner() *ctxRunner {
+	return &ctxRunner{
+		done: make(chan string, 100),
+	}
+}
+
+func (c *ctxRunner) Start(token string) error { return nil }
+
+func (c *ctxRunner) Stop(token string) error { return nil }
 
 func TestRegisterBot(t *testing.T) {
 	runner := newFakeRunner()
@@ -85,7 +100,7 @@ func TestConcurrentRegister(t *testing.T) {
 
 	done := make(chan struct{})
 
-	for i := range 100 {
+	for i := 0; i < 100; i++ {
 		go func(i int) {
 			_ = manager.Register(
 				fmt.Sprintf("bot%d", i),
@@ -121,7 +136,7 @@ func TestStressRegisterRemove(t *testing.T) {
 			case 1:
 				_ = manager.Remove(token)
 			case 2:
-				_ = manager.List
+				_ = manager.List()
 			}
 		}(i)
 	}
@@ -230,7 +245,64 @@ func TestRemoveFailsIfRunnerStopFails(t *testing.T) {
 		t.Fatal("expected error from runner stop")
 	}
 
+	// бот всё ещё должен существовать
 	if _, ok := manager.Bot("token123"); !ok {
 		t.Fatal("bot should remain registered if stop fails")
+	}
+}
+
+func TestStopAll(t *testing.T) {
+	r := newFakeRunner()
+	m := NewManager(r)
+
+	for i := 0; i < 10; i++ {
+		_ = m.Register(fmt.Sprintf("bot%d", i), fmt.Sprintf("token%d", i))
+	}
+
+	m.StopAll()
+}
+
+func (c *ctxRunner) Run(ctx context.Context, token string) error {
+	<-ctx.Done()
+	c.done <- token
+	return nil
+}
+
+func TestRemoveCancelContextRunner(t *testing.T) {
+	r := newCtxRunner()
+	m := NewManager(r)
+
+	_ = m.Register("bot", "token123")
+
+	if err := m.Remove("token123"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	select {
+	case token := <-r.done:
+		if token != "token123" {
+			t.Fatalf("unexpected token %s", token)
+		}
+	default:
+		t.Fatal("context runner was not canceled")
+	}
+}
+
+func TestStopAllCancelsAllContextRunners(t *testing.T) {
+	r := newCtxRunner()
+	m := NewManager(r)
+
+	for i := 0; i < 5; i++ {
+		_ = m.Register("bot", fmt.Sprintf("token%d", i))
+	}
+
+	m.StopAll()
+
+	for i := 0; i < 5; i++ {
+		select {
+		case <-r.done:
+		default:
+			t.Fatal("not all runners were canceled")
+		}
 	}
 }

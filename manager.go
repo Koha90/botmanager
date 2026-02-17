@@ -2,6 +2,7 @@
 package botmanager
 
 import (
+	"context"
 	"errors"
 	"sync"
 )
@@ -16,6 +17,10 @@ type Runner interface {
 	Stop(token string) error
 }
 
+type ContextRunner interface {
+	Run(ctx context.Context, token string) error
+}
+
 type Bot struct {
 	Name  string
 	Token string
@@ -25,12 +30,16 @@ type Manager struct {
 	mu     sync.RWMutex
 	bots   map[string]Bot
 	runner Runner
+
+	cancels map[string]context.CancelFunc
+	wg      sync.WaitGroup
 }
 
 func NewManager(r Runner) *Manager {
 	return &Manager{
-		bots:   make(map[string]Bot),
-		runner: r,
+		bots:    make(map[string]Bot),
+		cancels: make(map[string]context.CancelFunc),
+		runner:  r,
 	}
 }
 
@@ -42,8 +51,22 @@ func (m *Manager) Register(name, token string) error {
 		return ErrDuplicationToken
 	}
 
-	if err := m.runner.Start(token); err != nil {
-		return err
+	// если Runner поддерживает Run(ctx)
+	if r, ok := m.runner.(ContextRunner); ok {
+		ctx, cancel := context.WithCancel(context.Background())
+		m.cancels[token] = cancel
+
+		m.wg.Add(1)
+
+		go func() {
+			defer m.wg.Done()
+			_ = r.Run(ctx, token)
+		}()
+	} else {
+		// fallback для старых тестов
+		if err := m.runner.Start(token); err != nil {
+			return err
+		}
 	}
 
 	m.bots[token] = Bot{
@@ -73,11 +96,17 @@ func (m *Manager) Remove(token string) error {
 		return ErrNotFound
 	}
 
-	if err := m.runner.Stop(token); err != nil {
-		return err
+	if cancel, ok := m.cancels[token]; ok {
+		cancel()
+		delete(m.cancels, token)
+	} else {
+		if err := m.runner.Stop(token); err != nil {
+			return err
+		}
 	}
 
 	delete(m.bots, token)
+
 	return nil
 }
 
@@ -87,4 +116,16 @@ func (m *Manager) Bot(token string) (Bot, bool) {
 
 	bot, ok := m.bots[token]
 	return bot, ok
+}
+
+func (m *Manager) StopAll() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for token, cancel := range m.cancels {
+		cancel()
+		delete(m.cancels, token)
+	}
+
+	m.wg.Wait()
 }
