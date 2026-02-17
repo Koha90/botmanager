@@ -1,4 +1,4 @@
-package botmanager
+package manager
 
 import "context"
 
@@ -11,4 +11,5 @@ type botEntry struct {
 	bot    Bot
 	cancel context.CancelFunc
 	done   chan struct{}
+	status BotStatus
 }

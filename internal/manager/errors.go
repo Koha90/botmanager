@@ -1,4 +1,4 @@
-package botmanager
+package manager
 
 import "errors"
 

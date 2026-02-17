@@ -1,5 +1,5 @@
-// Package botmanager provide ...
-package botmanager
+// Package manager provide methods for monupulate bots
+package manager
 
 import (
 	"context"

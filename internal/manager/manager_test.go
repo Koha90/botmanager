@@ -1,4 +1,4 @@
-package botmanager
+package manager
 
 import (
 	"context"
@@ -9,28 +9,23 @@ import (
 )
 
 type fakeRunner struct {
-	started map[string]bool
-	done    map[string]bool
-	mu      sync.Mutex
+	started chan string
+	done    chan string
 }
 
 func newFakeRunner() *fakeRunner {
 	return &fakeRunner{
-		started: make(map[string]bool),
-		done:    make(map[string]bool),
+		started: make(chan string, 100),
+		done:    make(chan string, 100),
 	}
 }
 
 func (f *fakeRunner) Run(ctx context.Context, token string) error {
-	f.mu.Lock()
-	f.started[token] = true
-	f.mu.Unlock()
+	f.started <- token
 
 	<-ctx.Done()
 
-	f.mu.Lock()
-	f.done[token] = true
-	f.mu.Unlock()
+	f.done <- token
 
 	return nil
 }
@@ -193,12 +188,13 @@ func TestRegisterStartBot(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 
-	runner.mu.Lock()
-	started := runner.started["token123"]
-	runner.mu.Unlock()
-
-	if !started {
-		t.Fatal("expected bot to be stopped")
+	select {
+	case tok := <-runner.started:
+		if tok != "token123" {
+			t.Fatal("wrong token")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("runner did not start")
 	}
 }
 
@@ -209,12 +205,13 @@ func TestRemoveStopsBot(t *testing.T) {
 	_ = manager.Register("bot1", "token123")
 	_ = manager.Remove("token123")
 
-	runner.mu.Lock()
-	done := runner.done["token123"]
-	runner.mu.Unlock()
-
-	if !done {
-		t.Fatal("expected bot to be stopped")
+	select {
+	case tok := <-runner.done:
+		if tok != "token123" {
+			t.Fatalf("unexpected token %s", tok)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("runner did not stopped")
 	}
 }
 
@@ -232,14 +229,10 @@ func TestStopAll(t *testing.T) {
 	m.StopAll()
 
 	for i := 0; i < 10; i++ {
-		token := fmt.Sprintf("token%d", i)
-
-		r.mu.Lock()
-		done := r.done[token]
-		r.mu.Unlock()
-
-		if !done {
-			t.Fatalf("expected token %s to be stopped", token)
+		select {
+		case <-r.done:
+		case <-time.After(time.Second):
+			t.Fatal("runner was not stopped")
 		}
 	}
 }
