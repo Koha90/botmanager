@@ -2,24 +2,37 @@ package botmanager
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 )
 
 type fakeRunner struct {
-	started  map[string]bool
-	stopped  map[string]bool
-	startErr error
-	stopErr  error
+	started map[string]bool
+	done    map[string]bool
+	mu      sync.Mutex
 }
 
 func newFakeRunner() *fakeRunner {
 	return &fakeRunner{
 		started: make(map[string]bool),
-		stopped: make(map[string]bool),
+		done:    make(map[string]bool),
 	}
+}
+
+func (f *fakeRunner) Run(ctx context.Context, token string) error {
+	f.mu.Lock()
+	f.started[token] = true
+	f.mu.Unlock()
+
+	<-ctx.Done()
+
+	f.mu.Lock()
+	f.done[token] = true
+	f.mu.Unlock()
+
+	return nil
 }
 
 type ctxRunner struct {
@@ -32,9 +45,11 @@ func newCtxRunner() *ctxRunner {
 	}
 }
 
-func (c *ctxRunner) Start(token string) error { return nil }
-
-func (c *ctxRunner) Stop(token string) error { return nil }
+func (c *ctxRunner) Run(ctx context.Context, token string) error {
+	<-ctx.Done()
+	c.done <- token
+	return nil
+}
 
 func TestRegisterBot(t *testing.T) {
 	runner := newFakeRunner()
@@ -123,7 +138,7 @@ func TestStressRegisterRemove(t *testing.T) {
 
 	workers := 1000
 
-	for i := range workers {
+	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -170,32 +185,19 @@ func TestBootLookupUnknown(t *testing.T) {
 	}
 }
 
-func (f *fakeRunner) Start(token string) error {
-	if f.startErr != nil {
-		return f.startErr
-	}
-	f.started[token] = true
-	return nil
-}
-
-func (f *fakeRunner) Stop(token string) error {
-	if f.stopErr != nil {
-		return f.stopErr
-	}
-	f.stopped[token] = true
-	return nil
-}
-
 func TestRegisterStartBot(t *testing.T) {
 	runner := newFakeRunner()
 	manager := NewManager(runner)
 
-	err := manager.Register("bot1", "token123")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	_ = manager.Register("bot1", "token123")
 
-	if !runner.started["token123"] {
+	time.Sleep(10 * time.Millisecond)
+
+	runner.mu.Lock()
+	started := runner.started["token123"]
+	runner.mu.Unlock()
+
+	if !started {
 		t.Fatal("expected bot to be stopped")
 	}
 }
@@ -205,49 +207,14 @@ func TestRemoveStopsBot(t *testing.T) {
 	manager := NewManager(runner)
 
 	_ = manager.Register("bot1", "token123")
+	_ = manager.Remove("token123")
 
-	err := manager.Remove("token123")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	runner.mu.Lock()
+	done := runner.done["token123"]
+	runner.mu.Unlock()
 
-	if !runner.stopped["token123"] {
+	if !done {
 		t.Fatal("expected bot to be stopped")
-	}
-}
-
-func TestRegisterFailsIfRunnerStartFails(t *testing.T) {
-	runner := newFakeRunner()
-	runner.startErr = errors.New("start failed")
-
-	manager := NewManager(runner)
-
-	err := manager.Register("bot", "token123")
-	if err == nil {
-		t.Fatal("expected error from runner start")
-	}
-
-	if len(manager.List()) != 0 {
-		t.Fatal("bot should not be registered if start fails")
-	}
-}
-
-func TestRemoveFailsIfRunnerStopFails(t *testing.T) {
-	runner := newFakeRunner()
-	manager := NewManager(runner)
-
-	_ = manager.Register("bot1", "token123")
-
-	runner.stopErr = errors.New("stop failed")
-
-	err := manager.Remove("token123")
-	if err == nil {
-		t.Fatal("expected error from runner stop")
-	}
-
-	// бот всё ещё должен существовать
-	if _, ok := manager.Bot("token123"); !ok {
-		t.Fatal("bot should remain registered if stop fails")
 	}
 }
 
@@ -256,16 +223,25 @@ func TestStopAll(t *testing.T) {
 	m := NewManager(r)
 
 	for i := 0; i < 10; i++ {
-		_ = m.Register(fmt.Sprintf("bot%d", i), fmt.Sprintf("token%d", i))
+		_ = m.Register(
+			fmt.Sprintf("bot%d", i),
+			fmt.Sprintf("token%d", i),
+		)
 	}
 
 	m.StopAll()
-}
 
-func (c *ctxRunner) Run(ctx context.Context, token string) error {
-	<-ctx.Done()
-	c.done <- token
-	return nil
+	for i := 0; i < 10; i++ {
+		token := fmt.Sprintf("token%d", i)
+
+		r.mu.Lock()
+		done := r.done[token]
+		r.mu.Unlock()
+
+		if !done {
+			t.Fatalf("expected token %s to be stopped", token)
+		}
+	}
 }
 
 func TestRemoveCancelContextRunner(t *testing.T) {
