@@ -1,25 +1,38 @@
-// Package app provide general ...
+// Package app composes and write all application dependecies.
+//
+// It initializes ifrastructure, services, transport layer
+// and start the application serer.
 package app
 
 import (
-	"database/sql"
+	"net/http"
 
-	"botmanager/internal/service"
-	"botmanager/internal/storage/postgres"
+	"botmanager/internal/config"
+	transporthttp "botmanager/internal/transport/http"
+	"botmanager/internal/transport/http/handler"
+	"botmanager/pkg/logger"
 )
 
 type App struct {
-	OrderService   *service.OrderService
-	ProductService *service.ProductService
+	server *http.Server
 }
 
-func NewApp(db *sql.DB) *App {
-	productRepo := postgres.NewProductRepo()
-	orderRepo := postgres.NewOrderRepo()
+func NewApp(cfg *config.Config) *App {
+	logger := logger.SetupLogger(cfg.Env)
 
-	orderService := service.NewOrderService(productRepo, orderRepo)
+	orderService := buildOrderService(logger)
 
-	return &App{
-		OrderService: orderService,
+	handler := handler.NewOrderHandler(orderService)
+	router := transporthttp.NewRouter(handler)
+
+	server := &http.Server{
+		Addr:    ":" + cfg.HTTP.Port,
+		Handler: router,
 	}
+
+	return &App{server: server}
+}
+
+func (a *App) Run() error {
+	return a.server.ListenAndServe()
 }

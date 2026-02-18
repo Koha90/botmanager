@@ -76,28 +76,41 @@ func (o *Order) PullEvents() []DomainEvent {
 
 // ---- GETTERS ----
 
+// ID returned id of order.
 func (o *Order) ID() int {
 	return o.id
 }
 
+// CustomerID returned customer's id of order.
 func (o *Order) CustomerID() int {
 	return o.customerID
 }
 
+// ProductID returned product's id of order.
 func (o *Order) ProductID() int {
 	return o.productID
 }
 
-func (o *Order) PriceAtPurchase() int64 {
+// Price returned price of order.
+func (o *Order) Price() int64 {
 	return o.price
 }
 
+// Status returned status of order.
 func (o *Order) Status() OrderStatus {
 	return o.status
 }
 
+// Version returned version of order.
 func (o *Order) Version() int {
 	return o.version
+}
+
+// ---- SETTERS ----
+
+// SetID setups id of order.
+func (o *Order) SetID(id int) {
+	o.id = id
 }
 
 func (o *Order) addEvent(event DomainEvent) {

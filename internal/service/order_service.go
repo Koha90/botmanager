@@ -1,4 +1,7 @@
-// Package service provide metods for monipulation of data.
+// Package service contain application use scases.
+//
+// It coordinates domain logic, repositories and transactions.
+// It does not contain business rules.
 package service
 
 import (
@@ -98,6 +101,35 @@ func (s *OrderService) Confirm(ctx context.Context, id int) error {
 		s.bus.Publish(ctx, events...)
 
 		s.logger.Info("order confirmed successfully", "order_id", id)
+
+		return nil
+	})
+}
+
+func (s *OrderService) Cancel(ctx context.Context, id int) error {
+	return s.tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		s.logger.Info("cancelling order", "order_id", id)
+
+		order, err := s.updater.ByID(ctx, id)
+		if err != nil {
+			s.logger.Error("failed to load order", "error", err)
+			return err
+		}
+
+		if err := order.Cancel(); err != nil {
+			s.logger.Warn("order cancel rejected", "error", err)
+			return err
+		}
+
+		if err := s.updater.Update(ctx, order); err != nil {
+			s.logger.Error("failed to update order", "error", err)
+			return err
+		}
+
+		events := order.PullEvents()
+		s.bus.Publish(ctx, events...)
+
+		s.logger.Info("order canceled successfully", "order_id", id)
 
 		return nil
 	})
