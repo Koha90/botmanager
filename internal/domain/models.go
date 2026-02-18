@@ -1,4 +1,9 @@
-// Package domain provide struct of models.
+// Package domain contains the core business model of the application.
+//
+// It defines aggregates, value objects, domain events and business invariants.
+// The domain layer does not depend on infrastructure, transport or persistance.
+//
+// All business rules must live here.
 package domain
 
 import "time"

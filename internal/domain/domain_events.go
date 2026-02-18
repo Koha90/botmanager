@@ -2,6 +2,10 @@ package domain
 
 import "time"
 
+// DomainEvent represent a fact that happened inside the domain.
+//
+// Events are generate by aggregates and later published
+// by the application layer.
 type DomainEvent interface {
 	Name() string
 	OccurredAt() time.Time
