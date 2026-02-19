@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 	"testing"
@@ -21,24 +23,36 @@ func (f *fakeProductRepo) ByID(ctx context.Context, id int) (*domain.Product, er
 }
 
 type fakeOrderRepo struct {
-	created *domain.Order
-	updated *domain.Order
-	order   *domain.Order
+	created   *domain.Order
+	updated   *domain.Order
+	order     *domain.Order
+	createErr error
+	updateErr error
+	byIDErr   error
 }
 
 func (f *fakeOrderRepo) Create(ctx context.Context, order *domain.Order) error {
+	if f.createErr != nil {
+		return f.createErr
+	}
 	f.created = order
 	f.order = order
 	return nil
 }
 
 func (f *fakeOrderRepo) Update(ctx context.Context, order *domain.Order) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
 	f.updated = order
 	f.order = order
 	return nil
 }
 
 func (f *fakeOrderRepo) ByID(ctx context.Context, id int) (*domain.Order, error) {
+	if f.byIDErr != nil {
+		return nil, f.byIDErr
+	}
 	return f.order, nil
 }
 
@@ -86,7 +100,6 @@ func TestCreateOrder_SetsCartStatusAndPrice(t *testing.T) {
 	order, err := service.Create(ctx, 1, product.ID())
 
 	require.NoError(t, err)
-	require.NotNil(t, order.CustomerID())
 	require.Equal(t, domain.StatusCart, order.Status())
 	require.Equal(t, int64(1000), order.Price())
 	require.Equal(t, 1, order.CustomerID())
@@ -163,4 +176,96 @@ func TestOrderService_Confirm_Success(t *testing.T) {
 	err := service.Confirm(ctx, order.ID())
 
 	require.NoError(t, err)
+}
+
+func TestCreateOrder_SaveFails(t *testing.T) {
+	ctx := context.Background()
+
+	product, _ := domain.NewProduct("Test", 1000)
+
+	productRepo := &fakeProductRepo{product: product}
+	orderRepo := &fakeOrderRepo{createErr: errors.New("db error")}
+	bus := &fakeBus{}
+
+	service := NewOrderService(
+		productRepo,
+		orderRepo,
+		orderRepo,
+		&fakeTx{},
+		bus,
+		slog.Default(),
+	)
+
+	_, err := service.Create(ctx, 1, 1)
+
+	require.Error(t, err)
+}
+
+func TestConfirmOrder_NotFound(t *testing.T) {
+	ctx := context.Background()
+
+	repo := &fakeOrderRepo{byIDErr: errors.New("not found")}
+	tx := &fakeTx{}
+	bus := &fakeBus{}
+
+	service := NewOrderService(
+		nil,
+		repo,
+		repo,
+		tx,
+		bus,
+		slog.Default(),
+	)
+
+	err := service.Confirm(ctx, 1)
+
+	require.Error(t, err)
+	require.True(t, tx.called)
+}
+
+func TestConfirmOrder_UpdateFails(t *testing.T) {
+	ctx := context.Background()
+
+	order := domain.NewOrder(1, 1, 1000)
+
+	repo := &fakeOrderRepo{
+		order:     order,
+		updateErr: errors.New("update fail"),
+	}
+
+	tx := &fakeTx{}
+	bus := &fakeBus{}
+
+	service := NewOrderService(
+		nil,
+		repo,
+		repo,
+		tx,
+		bus,
+		slog.Default(),
+	)
+
+	err := service.Confirm(ctx, 1)
+	fmt.Println(err)
+
+	require.Error(t, err)
+	require.True(t, tx.called)
+}
+
+func TestCancelOrder_Success(t *testing.T) {
+	ctx := context.Background()
+
+	order := domain.NewOrder(1, 1, 1000)
+
+	repo := &fakeOrderRepo{order: order}
+	tx := &fakeTx{}
+	bus := &fakeBus{}
+
+	service := NewOrderService(nil, repo, repo, tx, bus, slog.Default())
+
+	err := service.Cancel(ctx, 1)
+
+	require.NoError(t, err)
+	require.Equal(t, domain.StatusCancelled, order.Status())
+	require.NotEmpty(t, bus.published)
 }
