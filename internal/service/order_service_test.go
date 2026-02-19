@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"botmanager/internal/domain"
+	"botmanager/internal/storage/memory"
 )
 
 type fakeProductRepo struct {
@@ -61,29 +63,34 @@ func (f *fakeBus) Subscribe(eventName string, handler EventHandler) {}
 
 func TestCreateOrder_SetsCartStatusAndPrice(t *testing.T) {
 	ctx := context.Background()
+	mu := &sync.Mutex{}
 
-	productRepo := &fakeProductRepo{
-		product: &domain.Product{
-			ID:    10,
-			Price: 1500,
-		},
-	}
+	productRepo := memory.NewProductRepository(mu)
+	orderRepo := memory.NewOrderRepository()
 
-	orderRepo := &fakeOrderRepo{}
+	// seed
+	product, _ := domain.NewProduct("Test", 1000)
+	_ = productRepo.Create(ctx, product)
 
-	tx := &fakeTx{}
 	bus := &fakeBus{}
-	logger := slog.Default()
 
-	service := NewOrderService(productRepo, orderRepo, orderRepo, tx, bus, logger)
+	service := NewOrderService(
+		productRepo,
+		orderRepo,
+		orderRepo,
+		memory.NewTxManager(mu),
+		bus,
+		slog.Default(),
+	)
 
-	order, err := service.Create(ctx, 1, 10)
+	order, err := service.Create(ctx, 1, product.ID())
+
 	require.NoError(t, err)
-
+	require.NotNil(t, order.CustomerID())
 	require.Equal(t, domain.StatusCart, order.Status())
-	require.Equal(t, int64(1500), order.Price())
+	require.Equal(t, int64(1000), order.Price())
 	require.Equal(t, 1, order.CustomerID())
-	require.Equal(t, 10, order.ProductID())
+	require.Equal(t, product.ID(), order.ProductID())
 }
 
 func TestConfirmOrder_ChangesStatusAndPublishesEvent(t *testing.T) {
@@ -105,4 +112,55 @@ func TestConfirmOrder_ChangesStatusAndPublishesEvent(t *testing.T) {
 	require.Equal(t, domain.StatusConfirmed, order.Status())
 	require.NotNil(t, repo.updated)
 	require.NotEmpty(t, bus.published)
+}
+
+func TestOrderService_Create_ProductNotFound(t *testing.T) {
+	ctx := context.Background()
+	mu := &sync.Mutex{}
+
+	productRepo := memory.NewProductRepository(mu)
+	orderRepo := memory.NewOrderRepository()
+
+	bus := &fakeBus{}
+
+	service := NewOrderService(
+		productRepo,
+		orderRepo,
+		orderRepo,
+		memory.NewTxManager(mu),
+		bus,
+		slog.Default(),
+	)
+
+	_, err := service.Create(ctx, 1, 999)
+
+	require.ErrorIs(t, err, domain.ErrProductNotFound)
+}
+
+func TestOrderService_Confirm_Success(t *testing.T) {
+	ctx := context.Background()
+	mu := &sync.Mutex{}
+
+	productRepo := memory.NewProductRepository(mu)
+	orderRepo := memory.NewOrderRepository()
+
+	product, _ := domain.NewProduct("Test", 1000)
+	_ = productRepo.Create(ctx, product)
+
+	bus := &fakeBus{}
+
+	service := NewOrderService(
+		productRepo,
+		orderRepo,
+		orderRepo,
+		memory.NewTxManager(mu),
+		bus,
+		slog.Default(),
+	)
+
+	order, _ := service.Create(ctx, 1, product.ID())
+
+	err := service.Confirm(ctx, order.ID())
+
+	require.NoError(t, err)
 }
