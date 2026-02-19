@@ -6,6 +6,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 
 	"botmanager/internal/domain"
@@ -63,22 +65,27 @@ func (s *OrderService) Confirm(ctx context.Context, id int) error {
 
 		order, err := s.updater.ByID(ctx, id)
 		if err != nil {
-			s.logger.Error("failed to load order", "error", err)
-			return err
+			if errors.Is(err, domain.ErrOrderNotFound) {
+				return domain.ErrOrderNotFound
+			}
+			return fmt.Errorf("get order: %w", err)
 		}
 
 		if err := order.Confirm(); err != nil {
-			s.logger.Warn("order confirm rejected", "error", err)
 			return err
 		}
 
 		if err := s.updater.Update(ctx, order); err != nil {
 			s.logger.Error("failed to update order", "error", err)
-			return err
+			return domain.ErrOrderUpdate
 		}
 
 		events := order.PullEvents()
-		s.bus.Publish(ctx, events...)
+		if len(events) > 0 {
+			if err := s.bus.Publish(ctx, events...); err != nil {
+				return fmt.Errorf("publish events: %w", err)
+			}
+		}
 
 		s.logger.Info("order confirmed successfully", "order_id", id)
 

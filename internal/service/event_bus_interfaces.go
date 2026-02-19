@@ -7,7 +7,7 @@ import (
 )
 
 type EventBus interface {
-	Publish(ctx context.Context, events ...domain.DomainEvent)
+	Publish(ctx context.Context, events ...domain.DomainEvent) error
 	Subscribe(eventName string, handler EventHandler)
 }
 

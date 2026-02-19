@@ -30,7 +30,7 @@ func (b *InMemoryBus) Subscribe(name string, h service.EventHandler) {
 	b.handlers[name] = append(b.handlers[name], h)
 }
 
-func (b *InMemoryBus) Publish(ctx context.Context, events ...domain.DomainEvent) {
+func (b *InMemoryBus) Publish(ctx context.Context, events ...domain.DomainEvent) error {
 	for _, e := range events {
 		name := e.Name()
 
@@ -47,4 +47,6 @@ func (b *InMemoryBus) Publish(ctx context.Context, events ...domain.DomainEvent)
 			}
 		}
 	}
+
+	return nil
 }

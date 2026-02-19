@@ -9,9 +9,12 @@ var (
 	ErrOrderAlreadyConfirmed error = errors.New("order already confirmed")
 	ErrOrderAlreadyCanceled  error = errors.New("order already canceled")
 	ErrOrderUpdate           error = errors.New("order update fail")
+	ErrOrderPublish          error = errors.New("order publish fail")
 
 	// product errors
 	ErrProductNotFound     error = errors.New("product not found")
 	ErrInvalidProductName  error = errors.New("invalid product name")
 	ErrInvalidProductPrice error = errors.New("invalid product price")
+
+	// tx errors
 )

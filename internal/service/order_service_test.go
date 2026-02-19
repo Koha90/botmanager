@@ -66,10 +66,19 @@ func (f *fakeTx) WithinTransaction(ctx context.Context, fn func(ctx context.Cont
 
 type fakeBus struct {
 	published []domain.DomainEvent
+	err       error
+	called    bool
 }
 
-func (f *fakeBus) Publish(ctx context.Context, events ...domain.DomainEvent) {
+func (f *fakeBus) Publish(ctx context.Context, events ...domain.DomainEvent) error {
+	f.called = true
+
+	if f.err != nil {
+		return f.err
+	}
+
 	f.published = append(f.published, events...)
+	return nil
 }
 
 func (f *fakeBus) Subscribe(eventName string, handler EventHandler) {}
@@ -260,6 +269,7 @@ func TestOrderService_Confirm(t *testing.T) {
 	tests := []struct {
 		name         string
 		setupRepo    func() *fakeOrderRepo
+		setupBus     func() *fakeBus
 		expectError  error
 		expectStatus *domain.OrderStatus
 		expectEvents bool
@@ -270,7 +280,7 @@ func TestOrderService_Confirm(t *testing.T) {
 				order := domain.NewOrder(1, 1, 1000)
 				return &fakeOrderRepo{order: order}
 			},
-			expectError:  nil,
+			setupBus:     func() *fakeBus { return &fakeBus{} },
 			expectStatus: ptr(domain.StatusConfirmed),
 			expectEvents: true,
 		},
@@ -279,6 +289,7 @@ func TestOrderService_Confirm(t *testing.T) {
 			setupRepo: func() *fakeOrderRepo {
 				return &fakeOrderRepo{byIDErr: domain.ErrOrderNotFound}
 			},
+			setupBus:    func() *fakeBus { return &fakeBus{} },
 			expectError: domain.ErrOrderNotFound,
 		},
 		{
@@ -288,6 +299,7 @@ func TestOrderService_Confirm(t *testing.T) {
 				_ = order.Confirm()
 				return &fakeOrderRepo{order: order}
 			},
+			setupBus:     func() *fakeBus { return &fakeBus{} },
 			expectError:  domain.ErrOrderAlreadyConfirmed,
 			expectStatus: ptr(domain.StatusConfirmed),
 		},
@@ -300,7 +312,17 @@ func TestOrderService_Confirm(t *testing.T) {
 					updateErr: domain.ErrOrderUpdate,
 				}
 			},
+			setupBus:    func() *fakeBus { return &fakeBus{} },
 			expectError: domain.ErrOrderUpdate,
+		},
+		{
+			name: "publishe fail",
+			setupRepo: func() *fakeOrderRepo {
+				order := domain.NewOrder(1, 1, 1000)
+				return &fakeOrderRepo{order: order}
+			},
+			setupBus:    func() *fakeBus { return &fakeBus{err: domain.ErrOrderPublish} },
+			expectError: domain.ErrOrderPublish,
 		},
 	}
 
@@ -308,7 +330,7 @@ func TestOrderService_Confirm(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := tt.setupRepo()
 			tx := &fakeTx{}
-			bus := &fakeBus{}
+			bus := tt.setupBus()
 
 			service := NewOrderService(
 				nil,
@@ -321,6 +343,8 @@ func TestOrderService_Confirm(t *testing.T) {
 
 			err := service.Confirm(ctx, 1)
 
+			require.True(t, tx.called)
+
 			if tt.expectError != nil {
 				require.Error(t, err)
 				require.ErrorIs(t, err, tt.expectError)
@@ -328,8 +352,6 @@ func TestOrderService_Confirm(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-
-			require.True(t, tx.called)
 
 			if tt.expectStatus != nil {
 				require.NotNil(t, repo.order)
