@@ -208,14 +208,7 @@ func TestConfirmOrder_NotFound(t *testing.T) {
 	tx := &fakeTx{}
 	bus := &fakeBus{}
 
-	service := NewOrderService(
-		nil,
-		repo,
-		repo,
-		tx,
-		bus,
-		slog.Default(),
-	)
+	service := newTestService(repo, tx, bus)
 
 	err := service.Confirm(ctx, 1)
 
@@ -236,14 +229,7 @@ func TestConfirmOrder_UpdateFails(t *testing.T) {
 	tx := &fakeTx{}
 	bus := &fakeBus{}
 
-	service := NewOrderService(
-		nil,
-		repo,
-		repo,
-		tx,
-		bus,
-		slog.Default(),
-	)
+	service := newTestService(repo, tx, bus)
 
 	err := service.Confirm(ctx, 1)
 	fmt.Println(err)
@@ -261,11 +247,107 @@ func TestCancelOrder_Success(t *testing.T) {
 	tx := &fakeTx{}
 	bus := &fakeBus{}
 
-	service := NewOrderService(nil, repo, repo, tx, bus, slog.Default())
+	service := newTestService(repo, tx, bus)
 
 	err := service.Cancel(ctx, 1)
 
 	require.NoError(t, err)
 	require.Equal(t, domain.StatusCancelled, order.Status())
 	require.NotEmpty(t, bus.published)
+}
+
+func TestOrderService_Confirm(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name         string
+		setupRepo    func() *fakeOrderRepo
+		expectError  bool
+		expectStatus *domain.OrderStatus
+		expectEvents bool
+	}{
+		{
+			name: "success",
+			setupRepo: func() *fakeOrderRepo {
+				order := domain.NewOrder(1, 1, 1000)
+				return &fakeOrderRepo{order: order}
+			},
+			expectError:  false,
+			expectStatus: ptr(domain.StatusConfirmed),
+			expectEvents: true,
+		},
+		{
+			name: "order not found",
+			setupRepo: func() *fakeOrderRepo {
+				return &fakeOrderRepo{byIDErr: errors.New("not found")}
+			},
+			expectError: true,
+		},
+		{
+			name: "already confirmed",
+			setupRepo: func() *fakeOrderRepo {
+				order := domain.NewOrder(1, 1, 1000)
+				_ = order.Confirm()
+				return &fakeOrderRepo{order: order}
+			},
+			expectError:  true,
+			expectStatus: ptr(domain.StatusConfirmed),
+		},
+		{
+			name: "update fails",
+			setupRepo: func() *fakeOrderRepo {
+				order := domain.NewOrder(1, 1, 1000)
+				return &fakeOrderRepo{
+					order:     order,
+					updateErr: errors.New("update fail"),
+				}
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := tt.setupRepo()
+			tx := &fakeTx{}
+			bus := &fakeBus{}
+
+			service := NewOrderService(
+				nil,
+				repo,
+				repo,
+				tx,
+				bus,
+				slog.Default(),
+			)
+
+			err := service.Confirm(ctx, 1)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			require.True(t, tx.called)
+
+			if tt.expectStatus != nil {
+				require.NotNil(t, repo.order)
+				require.Equal(t, *tt.expectStatus, repo.order.Status())
+			}
+
+			if tt.expectEvents {
+				require.NotEmpty(t, bus.published)
+			}
+		})
+	}
+}
+
+// helpers
+func ptr[T any](v T) *T {
+	return &v
+}
+
+func newTestService(repo *fakeOrderRepo, tx *fakeTx, bus *fakeBus) *OrderService {
+	return NewOrderService(nil, repo, repo, tx, bus, slog.Default())
 }
