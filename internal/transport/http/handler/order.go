@@ -14,6 +14,7 @@ import (
 
 	"botmanager/internal/domain"
 	"botmanager/internal/service"
+	"botmanager/internal/transport/http/dto"
 )
 
 // OrderHandler handles HTTP requests related to orders.
@@ -63,8 +64,15 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	resp := dto.OrderReponse{
+		ID:         order.ID(),
+		CustomerID: order.CustomerID(),
+		ProductID:  order.ProductID(),
+		Price:      order.Price(),
+	}
+
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(order)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // Confirm handles order confirmation.
