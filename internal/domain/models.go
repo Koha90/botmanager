@@ -26,16 +26,6 @@ type District struct {
 	CityID     int
 }
 
-type Product struct {
-	ID          int
-	Name        string
-	Description string
-	Price       int64
-	ImageURL    *string
-	DistictID   int
-	CategoryID  int
-}
-
 type Customer struct {
 	ID         int
 	TelegramID int64

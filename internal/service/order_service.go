@@ -1,4 +1,4 @@
-// Package service contain application use scases.
+// Package service contain application use cases.
 //
 // It coordinates domain logic, repositories and transactions.
 // It does not contain business rules.
@@ -10,26 +10,6 @@ import (
 
 	"botmanager/internal/domain"
 )
-
-type OrderRepository interface {
-	Create(ctx context.Context, order *domain.Order) error
-	ByID(ctx context.Context, id int) (*domain.Order, error)
-	ListByCustomer(ctx context.Context, customerID int) ([]domain.Order, error)
-	Update(ctx context.Context, order *domain.Order) error
-}
-
-type orderCreator interface {
-	Create(ctx context.Context, order *domain.Order) error
-}
-
-type productReader interface {
-	ByID(ctx context.Context, id int) (*domain.Product, error)
-}
-
-type orderUpdater interface {
-	ByID(ctx context.Context, id int) (*domain.Order, error)
-	Update(ctx context.Context, order *domain.Order) error
-}
 
 type OrderService struct {
 	products productReader
@@ -68,7 +48,7 @@ func (s *OrderService) Create(
 		return nil, err
 	}
 
-	order := domain.NewOrder(customerID, productID, product.Price)
+	order := domain.NewOrder(customerID, productID, product.Price())
 
 	if err := s.creator.Create(ctx, order); err != nil {
 		return nil, err

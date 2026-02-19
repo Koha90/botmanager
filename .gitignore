@@ -1,0 +1,11 @@
+# env
+.env
+
+# configurations
+config.toml
+config.json
+config.yml
+config.yaml
+
+# binary
+bin

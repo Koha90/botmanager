@@ -6,11 +6,13 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
+	"botmanager/internal/domain"
 	"botmanager/internal/service"
 )
 
@@ -52,10 +54,16 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	order, err := h.service.Create(r.Context(), req.CustomerID, req.ProductID)
 	if err != nil {
+		if errors.Is(err, domain.ErrProductNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(order)
 }
 
@@ -68,7 +76,11 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Returns 204 No Content on success.
 func (h *OrderHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
-	id, _ := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "invalid order id", http.StatusBadRequest)
+		return
+	}
 
 	if err := h.service.Confirm(r.Context(), id); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

@@ -6,23 +6,44 @@ import (
 	"botmanager/internal/domain"
 )
 
-type ProductRepository interface {
-	List(ctx context.Context) ([]domain.Product, error)
-	ListByCity(ctx context.Context, cityID int) ([]domain.Product, error)
-	ListByDistrict(ctx context.Context, districtID int) ([]domain.Product, error)
-	ListByCategory(ctx context.Context, categoryID int) ([]domain.Product, error)
-	ByID(ctx context.Context, id int) (*domain.Product, error)
-	Create(ctx context.Context, product *domain.Product) error
-	Update(ctx context.Context, product *domain.Product) error
-	Delete(ctx context.Context, id int) error
-}
-
 type ProductService struct {
-	products ProductRepository
+	repo ProductRepository
 }
 
-func NewProductService(products ProductRepository) *ProductService {
+// NewProductService creates new ProductSevice.
+func NewProductService(repo ProductRepository) *ProductService {
 	return &ProductService{
-		products: products,
+		repo: repo,
 	}
+}
+
+// Create validate input, create domain entity
+// and persist it using repository.
+//
+// Returns created product.
+func (s *ProductService) Create(
+	ctx context.Context,
+	name string,
+	price int64,
+) (*domain.Product, error) {
+	// 1. Create domain entity (validation happens inside)
+	product, err := domain.NewProduct(name, price)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Persist
+	if err := s.repo.Create(ctx, product); err != nil {
+		return nil, err
+	}
+
+	return product, nil
+}
+
+// ByID returns product by identifier.
+func (s *ProductService) ByID(
+	ctx context.Context,
+	id int,
+) (*domain.Product, error) {
+	return s.repo.ByID(ctx, id)
 }
