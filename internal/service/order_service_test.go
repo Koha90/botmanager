@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"sync"
 	"testing"
@@ -223,7 +222,7 @@ func TestConfirmOrder_UpdateFails(t *testing.T) {
 
 	repo := &fakeOrderRepo{
 		order:     order,
-		updateErr: errors.New("update fail"),
+		updateErr: domain.ErrOrderUpdate,
 	}
 
 	tx := &fakeTx{}
@@ -232,7 +231,6 @@ func TestConfirmOrder_UpdateFails(t *testing.T) {
 	service := newTestService(repo, tx, bus)
 
 	err := service.Confirm(ctx, 1)
-	fmt.Println(err)
 
 	require.Error(t, err)
 	require.True(t, tx.called)
@@ -262,7 +260,7 @@ func TestOrderService_Confirm(t *testing.T) {
 	tests := []struct {
 		name         string
 		setupRepo    func() *fakeOrderRepo
-		expectError  bool
+		expectError  error
 		expectStatus *domain.OrderStatus
 		expectEvents bool
 	}{
@@ -272,16 +270,16 @@ func TestOrderService_Confirm(t *testing.T) {
 				order := domain.NewOrder(1, 1, 1000)
 				return &fakeOrderRepo{order: order}
 			},
-			expectError:  false,
+			expectError:  nil,
 			expectStatus: ptr(domain.StatusConfirmed),
 			expectEvents: true,
 		},
 		{
 			name: "order not found",
 			setupRepo: func() *fakeOrderRepo {
-				return &fakeOrderRepo{byIDErr: errors.New("not found")}
+				return &fakeOrderRepo{byIDErr: domain.ErrOrderNotFound}
 			},
-			expectError: true,
+			expectError: domain.ErrOrderNotFound,
 		},
 		{
 			name: "already confirmed",
@@ -290,7 +288,7 @@ func TestOrderService_Confirm(t *testing.T) {
 				_ = order.Confirm()
 				return &fakeOrderRepo{order: order}
 			},
-			expectError:  true,
+			expectError:  domain.ErrOrderAlreadyConfirmed,
 			expectStatus: ptr(domain.StatusConfirmed),
 		},
 		{
@@ -299,10 +297,10 @@ func TestOrderService_Confirm(t *testing.T) {
 				order := domain.NewOrder(1, 1, 1000)
 				return &fakeOrderRepo{
 					order:     order,
-					updateErr: errors.New("update fail"),
+					updateErr: domain.ErrOrderUpdate,
 				}
 			},
-			expectError: true,
+			expectError: domain.ErrOrderUpdate,
 		},
 	}
 
@@ -323,11 +321,13 @@ func TestOrderService_Confirm(t *testing.T) {
 
 			err := service.Confirm(ctx, 1)
 
-			if tt.expectError {
+			if tt.expectError != nil {
 				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
+				require.ErrorIs(t, err, tt.expectError)
+				require.Empty(t, bus.published)
+				return
 			}
+			require.NoError(t, err)
 
 			require.True(t, tx.called)
 
@@ -337,7 +337,9 @@ func TestOrderService_Confirm(t *testing.T) {
 			}
 
 			if tt.expectEvents {
-				require.NotEmpty(t, bus.published)
+				require.Len(t, bus.published, 1)
+			} else {
+				require.Empty(t, bus.published)
 			}
 		})
 	}

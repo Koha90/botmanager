@@ -4,8 +4,11 @@ import "errors"
 
 var (
 	// order errors
-	ErrInvalidState  error = errors.New("confirmed order cannot be canceled")
-	ErrOrderNotFound error = errors.New("order not found")
+	ErrInvalidOrderState     error = errors.New("invalid order state transition")
+	ErrOrderNotFound         error = errors.New("order not found")
+	ErrOrderAlreadyConfirmed error = errors.New("order already confirmed")
+	ErrOrderAlreadyCanceled  error = errors.New("order already canceled")
+	ErrOrderUpdate           error = errors.New("order update fail")
 
 	// product errors
 	ErrProductNotFound     error = errors.New("product not found")
