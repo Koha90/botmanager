@@ -5,6 +5,7 @@
 package app
 
 import (
+	"log/slog"
 	"net/http"
 
 	"botmanager/internal/config"
@@ -18,9 +19,15 @@ type App struct {
 }
 
 func NewApp(cfg *config.Config) *App {
-	logger := logger.SetupLogger(cfg.Env)
+	logger, err := logger.Setup(cfg.Env)
+	if err != nil {
+		panic(err)
+	}
+	defer logger.Close()
 
-	orderService := buildOrderService(logger)
+	slog.Info("application started")
+
+	orderService := buildOrderService(logger.Logger)
 
 	handler := handler.NewOrderHandler(orderService)
 	router := transporthttp.NewRouter(handler)
