@@ -40,7 +40,8 @@ func (b *InMemoryBus) Publish(ctx context.Context, events ...domain.DomainEvent)
 
 		for _, h := range handlers {
 			if err := h(ctx, e); err != nil {
-				b.logger.Error("event handler failed",
+				b.logger.Error(
+					"event handler failed",
 					"event", name,
 					"error", err,
 				)

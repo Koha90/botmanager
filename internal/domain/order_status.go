@@ -2,12 +2,6 @@ package domain
 
 import "errors"
 
-var (
-	StatusCart      = OrderStatus{"cart"}
-	StatusConfirmed = OrderStatus{"confirmed"}
-	StatusCancelled = OrderStatus{"canceled"}
-)
-
 // OrderStatus represnts order lifecycle state.
 //
 // It is a value object and guarantees that only valid states exists.
@@ -15,18 +9,24 @@ type OrderStatus struct {
 	value string
 }
 
+var (
+	StatusCart      = OrderStatus{"cart"}
+	StatusConfirmed = OrderStatus{"confirmed"}
+	StatusCancelled = OrderStatus{"canceled"}
+)
+
+var allowedStatuses = map[string]OrderStatus{
+	StatusCart.value:      StatusCart,
+	StatusConfirmed.value: StatusConfirmed,
+	StatusCancelled.value: StatusCancelled,
+}
+
 // NewOrderStatus validates and creates OrderStatus from string value.
 func NewOrderStatus(value string) (OrderStatus, error) {
-	switch value {
-	case "cart":
-		return StatusCart, nil
-	case "confirmed":
-		return StatusConfirmed, nil
-	case "canceled":
-		return StatusCancelled, nil
-	default:
-		return OrderStatus{}, errors.New("invalid order status")
+	if status, ok := allowedStatuses[value]; ok {
+		return status, nil
 	}
+	return OrderStatus{}, errors.New("invalid order status")
 }
 
 // CanConfirm returns true if order can be confirmed.

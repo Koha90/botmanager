@@ -42,7 +42,7 @@ func TestOrder_Confirm_Table(t *testing.T) {
 
 			events := o.PullEvents()
 			require.Len(t, events, 1)
-			require.Equal(t, OrderConfirm, events[0].Name())
+			require.Equal(t, NameConfirm, events[0].Name())
 
 			require.Equal(t, int64(1000), o.Price())
 

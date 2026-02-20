@@ -39,6 +39,11 @@ func (o *Order) Confirm() error {
 	if o.status == StatusConfirmed {
 		return ErrOrderAlreadyConfirmed
 	}
+
+	if o.status == StatusCancelled {
+		return ErrOrderAlreadyCanceled
+	}
+
 	if !o.status.CanConfirm() {
 		return ErrInvalidOrderState
 	}
@@ -59,6 +64,11 @@ func (o *Order) Cancel() error {
 	if o.status == StatusCancelled {
 		return ErrOrderAlreadyCanceled
 	}
+
+	if o.status == StatusConfirmed {
+		return ErrOrderAlreadyConfirmed
+	}
+
 	if !o.status.CanCancel() {
 		return ErrInvalidOrderState
 	}
