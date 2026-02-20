@@ -1,12 +1,11 @@
-// Package logger provide setting of logger.
+// Package logger provides application logger setup.
 package logger
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
-
-	slogmulti "github.com/samber/slog-multi"
 )
 
 const (
@@ -15,50 +14,85 @@ const (
 	envProd  = "prod"
 )
 
-// SetupLogger provide setup of log and his levels.
-func SetupLogger(env string) *slog.Logger {
-	var logger *slog.Logger
+type Logger struct {
+	*slog.Logger
+	closer io.Closer
+}
+
+// Close gracefully closes underlying resources (if any).
+func (l *Logger) Close() error {
+	if l.closer != nil {
+		return l.closer.Close()
+	}
+	return nil
+}
+
+// Setup initializes logger, sets it as default and returns wrapper.
+func Setup(env string) (*Logger, error) {
+	var (
+		handler slog.Handler
+		closer  io.Closer
+	)
 
 	switch env {
 	case envLocal:
-		logger = slog.New(
-			slog.NewTextHandler(
-				os.Stdout,
-				&slog.HandlerOptions{AddSource: true, Level: slog.LevelDebug},
-			),
+		handler = slog.NewTextHandler(
+			os.Stdout,
+			&slog.HandlerOptions{
+				AddSource: true,
+				Level:     slog.LevelDebug,
+			},
 		)
 
 	case envDev:
-		logger = slog.New(
-			slog.NewJSONHandler(
-				os.Stdout,
-				&slog.HandlerOptions{AddSource: true, Level: slog.LevelDebug},
-			),
+		handler = slog.NewJSONHandler(
+			os.Stdout,
+			&slog.HandlerOptions{
+				AddSource: true,
+				Level:     slog.LevelDebug,
+			},
 		)
+
 	case envProd:
 		if err := os.MkdirAll("logs", 0o755); err != nil {
-			panic(fmt.Errorf("не удалось создать директорию логов: %w", err))
+			return nil, fmt.Errorf("cannot create logs directory: %w", err)
 		}
 
 		file, err := os.OpenFile("logs/logs.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 		if err != nil {
-			panic(fmt.Errorf("не удалось открыть файл логов: %w", err))
+			return nil, fmt.Errorf("cannot open log file: %w", err)
 		}
 
-		logger = slog.New(
-			slogmulti.Fanout(
-				slog.NewJSONHandler(file, &slog.HandlerOptions{Level: slog.LevelInfo}),
-				slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
-			),
+		fileHandler := slog.NewJSONHandler(
+			file,
+			&slog.HandlerOptions{
+				Level: slog.LevelInfo,
+			},
 		)
 
+		stdoutHandler := slog.NewJSONHandler(
+			os.Stdout,
+			&slog.HandlerOptions{
+				Level: slog.LevelInfo,
+			},
+		)
+
+		handler = slog.NewMultiHandler(fileHandler, stdoutHandler)
+		closer = file
+
 	default:
-		logger = slog.New(
-			slog.NewTextHandler(
-				os.Stdout,
-				&slog.HandlerOptions{AddSource: true, Level: slog.LevelInfo},
-			))
+		handler = slog.NewTextHandler(
+			os.Stdout,
+			&slog.HandlerOptions{AddSource: true, Level: slog.LevelInfo},
+		)
 	}
 
-	return logger
+	base := slog.New(handler)
+
+	slog.SetDefault(base)
+
+	return &Logger{
+		Logger: base,
+		closer: closer,
+	}, nil
 }

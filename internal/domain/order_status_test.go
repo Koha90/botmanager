@@ -114,16 +114,44 @@ func TestOrder_Cancel_Table(t *testing.T) {
 	}
 }
 
-func TestOrderStatus_CanConfirm(t *testing.T) {
-	require.True(t, StatusCart.CanConfirm())
-	require.False(t, StatusConfirmed.CanConfirm())
-	require.False(t, StatusCancelled.CanConfirm())
+func TestOrderStatus_Confirm_Table(t *testing.T) {
+	tests := []struct {
+		status    OrderStatus
+		expectErr error
+	}{
+		{StatusCart, nil},
+		{StatusConfirmed, ErrOrderAlreadyConfirmed},
+		{StatusCancelled, ErrOrderAlreadyCanceled},
+	}
+
+	for _, tt := range tests {
+		_, err := tt.status.Confirm()
+		if tt.expectErr != nil {
+			require.ErrorIs(t, err, tt.expectErr)
+			continue
+		}
+		require.NoError(t, err)
+	}
 }
 
-func TestOrderStatus_CanCancel(t *testing.T) {
-	require.True(t, StatusCart.CanCancel())
-	require.False(t, StatusConfirmed.CanCancel())
-	require.False(t, StatusCancelled.CanCancel())
+func TestOrderStatus_Cancel_Table(t *testing.T) {
+	tests := []struct {
+		status    OrderStatus
+		expectErr error
+	}{
+		{StatusCart, nil},
+		{StatusCancelled, ErrOrderAlreadyCanceled},
+		{StatusConfirmed, ErrInvalidOrderState},
+	}
+
+	for _, tt := range tests {
+		_, err := tt.status.Cancel()
+		if tt.expectErr != nil {
+			require.ErrorIs(t, err, tt.expectErr)
+			continue
+		}
+		require.NoError(t, err)
+	}
 }
 
 func TestOrderStatus_OtherMethods(t *testing.T) {
@@ -143,4 +171,56 @@ func TestNewOrder(t *testing.T) {
 	require.Equal(t, 1, o.Version())
 	require.Equal(t, int64(5000), o.Price())
 	require.Empty(t, o.PullEvents())
+}
+
+func TestNewOrderStatus_FromString(t *testing.T) {
+	tests := []struct {
+		value     string
+		expectErr bool
+	}{
+		{"cart", false},
+		{"confirmed", false},
+		{"canceled", false},
+		{"invalid", true},
+	}
+
+	for _, tt := range tests {
+		_, err := NewOrderStatus(tt.value)
+		if tt.expectErr {
+			require.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+	}
+}
+
+func TestOrder_Confirm_FromConfirmed(t *testing.T) {
+	o := NewOrder(1, 1, 1000)
+	o.SetID(42)
+
+	require.NoError(t, o.Confirm())
+
+	err := o.Confirm()
+	require.ErrorIs(t, err, ErrOrderAlreadyConfirmed)
+
+	require.Equal(t, 2, o.Version())
+}
+
+func TestOrder_Cancel_FromConfirmed(t *testing.T) {
+	o := NewOrder(1, 1, 1000)
+	o.SetID(42)
+
+	require.NoError(t, o.Confirm())
+
+	err := o.Cancel()
+	require.ErrorIs(t, err, ErrInvalidOrderState)
+}
+
+func TestOrder_Getters(t *testing.T) {
+	o := NewOrder(10, 20, 5000)
+	o.SetID(99)
+
+	require.Equal(t, 99, o.ID())
+	require.Equal(t, 10, o.CustomerID())
+	require.Equal(t, 20, o.ProductID())
 }

@@ -36,19 +36,12 @@ func NewOrder(customerID int, productID int, price int64) *Order {
 // It validates business rules and generates OrderConfimed event.
 // Returns error if transition is not allowed.
 func (o *Order) Confirm() error {
-	if o.status == StatusConfirmed {
-		return ErrOrderAlreadyConfirmed
+	newStatus, err := o.status.Confirm()
+	if err != nil {
+		return err
 	}
 
-	if o.status == StatusCancelled {
-		return ErrOrderAlreadyCanceled
-	}
-
-	if !o.status.CanConfirm() {
-		return ErrInvalidOrderState
-	}
-
-	o.status = StatusConfirmed
+	o.status = newStatus
 	o.version++
 
 	o.addEvent(NewOrderConfirmed(o.id))
@@ -61,19 +54,12 @@ func (o *Order) Confirm() error {
 // It validates business rules and generates OrderCancelled event.
 // Returns error if transition is not allowed.
 func (o *Order) Cancel() error {
-	if o.status == StatusCancelled {
-		return ErrOrderAlreadyCanceled
+	newStatus, err := o.status.Cancel()
+	if err != nil {
+		return err
 	}
 
-	if o.status == StatusConfirmed {
-		return ErrOrderAlreadyConfirmed
-	}
-
-	if !o.status.CanCancel() {
-		return ErrInvalidOrderState
-	}
-
-	o.status = StatusCancelled
+	o.status = newStatus
 	o.version++
 
 	o.addEvent(NewOrderCanceled(o.id))

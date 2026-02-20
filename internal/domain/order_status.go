@@ -29,14 +29,30 @@ func NewOrderStatus(value string) (OrderStatus, error) {
 	return OrderStatus{}, errors.New("invalid order status")
 }
 
-// CanConfirm returns true if order can be confirmed.
-func (s OrderStatus) CanConfirm() bool {
-	return s.value == StatusCart.value
+func (s OrderStatus) Confirm() (OrderStatus, error) {
+	switch s {
+	case StatusCart:
+		return StatusConfirmed, nil
+	case StatusConfirmed:
+		return s, ErrOrderAlreadyConfirmed
+	case StatusCancelled:
+		return s, ErrOrderAlreadyCanceled
+	default:
+		return s, ErrInvalidOrderState
+	}
 }
 
-// CanCancel returns true if order can be cancelled.
-func (s OrderStatus) CanCancel() bool {
-	return s.value == StatusCart.value
+func (s OrderStatus) Cancel() (OrderStatus, error) {
+	switch s {
+	case StatusCart:
+		return StatusCancelled, nil
+	case StatusCancelled:
+		return s, ErrOrderAlreadyCanceled
+	case StatusConfirmed:
+		return s, ErrInvalidOrderState
+	default:
+		return s, ErrInvalidOrderState
+	}
 }
 
 func (s OrderStatus) IsFinal() bool {
