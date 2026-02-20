@@ -59,7 +59,27 @@ func (p *Product) ImageURL() *string {
 
 // ---- SETTERS ----
 
-// SetID settup id of product.
+// SetID sets the product identifier.
 func (p *Product) SetID(id int) {
 	p.id = id
+}
+
+// ChangePrice changes the price of the product.
+func (p *Product) ChangePrice(price int64) error {
+	if price <= 0 {
+		return ErrInvalidProductPrice
+	}
+
+	p.price = price
+	return nil
+}
+
+// Rename renames the product.
+func (p *Product) Rename(name string) error {
+	if name == "" {
+		return ErrInvalidProductName
+	}
+
+	p.name = name
+	return nil
 }
