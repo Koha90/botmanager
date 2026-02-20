@@ -15,6 +15,10 @@ var (
 	ErrProductNotFound     error = errors.New("product not found")
 	ErrInvalidProductName  error = errors.New("invalid product name")
 	ErrInvalidProductPrice error = errors.New("invalid product price")
-
+	ErrInvalidCategoryID   error = errors.New("invalid category id")
+	ErrInvalidImageURL     error = errors.New("invalid image url")
+	ErrInvalidProductID    error = errors.New("invalid product id")
+	ErrInvalidPackSize     error = errors.New("invalid pack size")
+	ErrInvalidDisctrictID  error = errors.New("invalid district id")
 	// tx errors
 )

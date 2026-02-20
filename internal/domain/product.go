@@ -1,30 +1,41 @@
 package domain
 
-// Product represent the Product
+import (
+	"strings"
+)
+
+// Product represents the product.
 type Product struct {
 	id          int
 	name        string
 	description string
-	price       int64
-	imageURL    *string
-	distictID   int
+	imagePath   string
 	categoryID  int
 }
 
-// NewProduct creates a new Product.
+// NewProduct creates a new product.
 // The returned product is not persisted yet,
-// or error if name or price invalids.
-func NewProduct(name string, price int64) (*Product, error) {
-	if name == "" {
+// or error if name empty or invalids
+// and category id is invalid.
+func NewProduct(
+	name string,
+	categoryID int,
+	description string,
+	imagePath string,
+) (*Product, error) {
+	if strings.TrimSpace(name) == "" {
 		return nil, ErrInvalidProductName
 	}
 
-	if price <= 0 {
-		return nil, ErrInvalidProductPrice
+	if categoryID <= 0 {
+		return nil, ErrInvalidCategoryID
 	}
+
 	return &Product{
-		name:  name,
-		price: price,
+		name:        name,
+		categoryID:  categoryID,
+		description: description,
+		imagePath:   imagePath,
 	}, nil
 }
 
@@ -45,14 +56,35 @@ func (p *Product) Description() string {
 	return p.description
 }
 
-// Price return price of product.
-func (p *Product) Price() int64 {
-	return p.price
+// ImageURL return imageurl of product.
+func (p *Product) ImagePath() *string {
+	return &p.imagePath
 }
 
-// ImageURL return imageurl of product.
-func (p *Product) ImageURL() *string {
-	return p.imageURL
+// ---- CHANEGERS ----
+
+// Rename renames the product.
+func (p *Product) Rename(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return ErrInvalidProductName
+	}
+
+	p.name = name
+	return nil
+}
+
+// ChangeCategory changes category.
+func (p *Product) ChangeCategory(categoryID int) error {
+	if categoryID <= 0 {
+		return ErrInvalidCategoryID
+	}
+	p.categoryID = categoryID
+	return nil
+}
+
+// UpdateDescription updates description the product.
+func (p *Product) UpdateDescription(description string) {
+	p.description = description
 }
 
 // TODO: create other getter-methods.
@@ -60,26 +92,12 @@ func (p *Product) ImageURL() *string {
 // ---- SETTERS ----
 
 // SetID sets the product identifier.
-func (p *Product) SetID(id int) {
+// Returns error if identifier is invalid.
+func (p *Product) SetID(id int) error {
+	if id <= 0 {
+		return ErrInvalidProductID
+	}
+
 	p.id = id
-}
-
-// ChangePrice changes the price of the product.
-func (p *Product) ChangePrice(price int64) error {
-	if price <= 0 {
-		return ErrInvalidProductPrice
-	}
-
-	p.price = price
-	return nil
-}
-
-// Rename renames the product.
-func (p *Product) Rename(name string) error {
-	if name == "" {
-		return ErrInvalidProductName
-	}
-
-	p.name = name
 	return nil
 }
