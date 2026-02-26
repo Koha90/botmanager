@@ -15,10 +15,13 @@ func TestInMemoryBus_MultipleEvents(t *testing.T) {
 
 	count := 0
 
-	bus.Subscribe(domain.OrderConfirm, func(ctx context.Context, event domain.DomainEvent) error {
-		count++
-		return nil
-	})
+	bus.Subscribe(
+		domain.NameOrderConfirm,
+		func(ctx context.Context, event domain.DomainEvent) error {
+			count++
+			return nil
+		},
+	)
 
 	e1 := domain.NewOrderConfirmed(1)
 	e2 := domain.NewOrderConfirmed(2)

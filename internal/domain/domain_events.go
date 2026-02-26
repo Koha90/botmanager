@@ -11,9 +11,9 @@ type DomainEvent interface {
 	OccurredAt() time.Time
 }
 
-var (
-	NameConfirm string = "order_confirmed"
-	NameCancel  string = "order_cancelled"
+const (
+	NameOrderConfirm string = "order_confirmed"
+	NameOrderCancel  string = "order_cancelled"
 )
 
 type OrderConfirmed struct {
@@ -34,7 +34,7 @@ func NewOrderConfirmed(orderID int) OrderConfirmed {
 }
 
 func (e OrderConfirmed) Name() string {
-	return NameConfirm
+	return NameOrderConfirm
 }
 
 func (e OrderConfirmed) OccurredAt() time.Time {
@@ -49,7 +49,7 @@ func NewOrderCanceled(orderID int) OrderCanceled {
 }
 
 func (e OrderCanceled) Name() string {
-	return NameCancel
+	return NameOrderCancel
 }
 
 func (e OrderCanceled) OccurredAt() time.Time {

@@ -14,11 +14,11 @@ func TestOrder_Confirm_Table(t *testing.T) {
 	}{
 		{
 			name:  "success",
-			setup: func() *Order { return NewOrder(1, 1, 1000) },
+			setup: func() *Order { return NewOrder(1, 1, 1, 200) },
 		}, {
 			name: "already confirmed",
 			setup: func() *Order {
-				o := NewOrder(1, 1, 1000)
+				o := NewOrder(1, 1, 1, 200)
 				_ = o.Confirm()
 				return o
 			},
@@ -42,9 +42,9 @@ func TestOrder_Confirm_Table(t *testing.T) {
 
 			events := o.PullEvents()
 			require.Len(t, events, 1)
-			require.Equal(t, NameConfirm, events[0].Name())
+			require.Equal(t, NameOrderConfirm, events[0].Name())
 
-			require.Equal(t, int64(1000), o.Price())
+			require.Equal(t, int64(200), o.Price())
 
 			require.Empty(t, o.PullEvents())
 		})

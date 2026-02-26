@@ -1,6 +1,9 @@
 package domain
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // ProductVariant repesent a variant of product packaging.
 type ProductVariant struct {
@@ -9,12 +12,14 @@ type ProductVariant struct {
 	packSize   string
 	districtID int
 	price      int64
+	archivedAt *time.Time
 }
 
 // NewProductVariant creates a new product
 // packaging option with price and city district.
 // Returns error if price invalid.
 func NewProductVariant(
+	id int,
 	productID int,
 	packSize string,
 	districtID int,
@@ -37,6 +42,7 @@ func NewProductVariant(
 	}
 
 	return &ProductVariant{
+		id:         id,
 		productID:  productID,
 		packSize:   packSize,
 		districtID: districtID,
@@ -64,4 +70,29 @@ func (v *ProductVariant) ChangePackSize(packSize string) error {
 
 	v.packSize = packSize
 	return nil
+}
+
+// ByID returns product variant.
+func (v *ProductVariant) ID() int {
+	return v.id
+}
+
+// Price returns price of the variant product.
+func (v *ProductVariant) Price() int64 {
+	return v.price
+}
+
+// ProductID returns identidier of product.
+func (v *ProductVariant) ProductID() int {
+	return v.productID
+}
+
+// Archive settup date of archived variant.
+func (v *ProductVariant) Archive(now time.Time) {
+	v.archivedAt = &now
+}
+
+// IsActive checks if the variant is in the archive.
+func (v ProductVariant) IsActive() bool {
+	return v.archivedAt == nil
 }

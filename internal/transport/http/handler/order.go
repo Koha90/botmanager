@@ -33,6 +33,7 @@ func NewOrderHandler(s *service.OrderService) *OrderHandler {
 type createRequest struct {
 	CustomerID int `json:"customer_id"`
 	ProductID  int `json:"product_id"`
+	VariantID  int `json:"variant_id"`
 }
 
 // Create handles order creation request.
@@ -53,7 +54,7 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	order, err := h.service.Create(r.Context(), req.CustomerID, req.ProductID)
+	order, err := h.service.Create(r.Context(), req.CustomerID, req.ProductID, req.VariantID)
 	if err != nil {
 		if errors.Is(err, domain.ErrProductNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)

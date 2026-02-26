@@ -91,7 +91,7 @@ func TestCreateOrder_SetsCartStatusAndPrice(t *testing.T) {
 	orderRepo := memory.NewOrderRepository()
 
 	// seed
-	product, _ := domain.NewProduct("Test", 1000)
+	product, _ := domain.NewProduct("Test", 1, "TestDesc", "")
 	_ = productRepo.Create(ctx, product)
 
 	bus := &fakeBus{}

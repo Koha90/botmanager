@@ -26,13 +26,6 @@ type District struct {
 	CityID     int
 }
 
-type Customer struct {
-	ID         int
-	TelegramID int64
-	Username   string
-	Balance    int64
-}
-
 type Transaction struct {
 	ID         int
 	CustomerID int

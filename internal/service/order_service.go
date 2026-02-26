@@ -15,25 +15,27 @@ import (
 
 type OrderService struct {
 	products productReader
-	creator  orderCreator
-	updater  orderUpdater
-	tx       TxManager
-	bus      EventBus
-	logger   *slog.Logger
+	orders   orderRepository
+	idGen    IDGenerator
+
+	tx     TxManager
+	bus    EventBus
+	logger *slog.Logger
 }
 
 func NewOrderService(
 	products productReader,
-	creator orderCreator,
-	updater orderUpdater,
+	orders orderRepository,
+	idGen IDGenerator,
+
 	tx TxManager,
 	bus EventBus,
 	logger *slog.Logger,
 ) *OrderService {
 	return &OrderService{
 		products: products,
-		creator:  creator,
-		updater:  updater,
+		orders:   orders,
+		idGen:    idGen,
 		tx:       tx,
 		bus:      bus,
 		logger:   logger,
@@ -44,26 +46,53 @@ func (s *OrderService) Create(
 	ctx context.Context,
 	customerID int,
 	productID int,
+	variantID int,
 ) (*domain.Order, error) {
-	product, err := s.products.ByID(ctx, productID)
+	var created *domain.Order
+
+	err := s.tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		product, err := s.products.ByID(ctx, productID)
+		if err != nil {
+			return err
+		}
+
+		variant, err := product.VariantByID(variantID)
+		if err != nil {
+			return err
+		}
+
+		id, err := s.idGen.NextOrderID(ctx)
+		if err != nil {
+			return err
+		}
+
+		order := domain.NewOrder(
+			id,
+			customerID,
+			productID,
+			variant.ID(),
+			variant.Price(),
+		)
+
+		if err := s.orders.Create(ctx, order); err != nil {
+			return err
+		}
+
+		created = order
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	order := domain.NewOrder(customerID, productID, product.Price())
-
-	if err := s.creator.Create(ctx, order); err != nil {
-		return nil, err
-	}
-
-	return order, nil
+	return created, nil
 }
 
 func (s *OrderService) Confirm(ctx context.Context, id int) error {
 	return s.tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		s.logger.Info("confirming order", "order_id", id)
 
-		order, err := s.updater.ByID(ctx, id)
+		order, err := s.orders.ByID(ctx, id)
 		if err != nil {
 			if errors.Is(err, domain.ErrOrderNotFound) {
 				return domain.ErrOrderNotFound
@@ -75,7 +104,7 @@ func (s *OrderService) Confirm(ctx context.Context, id int) error {
 			return err
 		}
 
-		if err := s.updater.Update(ctx, order); err != nil {
+		if err := s.orders.Update(ctx, order); err != nil {
 			s.logger.Error("failed to update order", "error", err)
 			return domain.ErrOrderUpdate
 		}
@@ -97,7 +126,7 @@ func (s *OrderService) Cancel(ctx context.Context, id int) error {
 	return s.tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		s.logger.Info("cancelling order", "order_id", id)
 
-		order, err := s.updater.ByID(ctx, id)
+		order, err := s.orders.ByID(ctx, id)
 		if err != nil {
 			s.logger.Error("failed to load order", "error", err)
 			return err
@@ -108,7 +137,7 @@ func (s *OrderService) Cancel(ctx context.Context, id int) error {
 			return err
 		}
 
-		if err := s.updater.Update(ctx, order); err != nil {
+		if err := s.orders.Update(ctx, order); err != nil {
 			s.logger.Error("failed to update order", "error", err)
 			return err
 		}

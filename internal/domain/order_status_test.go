@@ -6,6 +6,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func RehydrateOrder(
+	id int,
+	customerID int,
+	productID int,
+	price int64,
+	status OrderStatus,
+	version int,
+) *Order {
+	return &Order{
+		id:         id,
+		customerID: customerID,
+		productID:  productID,
+		price:      price,
+		status:     status,
+		version:    version,
+	}
+}
+
 func TestNewOrderStatus(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -15,16 +33,14 @@ func TestNewOrderStatus(t *testing.T) {
 		{
 			name: "success",
 			setup: func() *Order {
-				o := NewOrder(1, 1, 1000)
-				o.SetID(42)
+				o := NewOrder(1, 1, 1, 1, 200)
 				return o
 			},
 		},
 		{
 			name: "already confirmed",
 			setup: func() *Order {
-				o := NewOrder(1, 1, 1000)
-				o.SetID(42)
+				o := NewOrder(1, 1, 1, 1, 200)
 				_ = o.Confirm()
 				return o
 			},
@@ -33,8 +49,7 @@ func TestNewOrderStatus(t *testing.T) {
 		{
 			name: "invalid state after cancel",
 			setup: func() *Order {
-				o := NewOrder(1, 1, 1000)
-				o.SetID(42)
+				o := NewOrder(1, 1, 1, 1, 200)
 				_ = o.Cancel()
 				return o
 			},
@@ -59,7 +74,7 @@ func TestNewOrderStatus(t *testing.T) {
 
 			events := o.PullEvents()
 			require.Len(t, events, 1)
-			require.Equal(t, NameConfirm, events[0].Name())
+			require.Equal(t, NameOrderConfirm, events[0].Name())
 			require.Empty(t, o.PullEvents())
 		})
 	}
@@ -74,16 +89,14 @@ func TestOrder_Cancel_Table(t *testing.T) {
 		{
 			name: "success",
 			setup: func() *Order {
-				o := NewOrder(1, 1, 1000)
-				o.SetID(42)
+				o := NewOrder(1, 1, 1, 1, 200)
 				return o
 			},
 		},
 		{
 			name: "already canceled",
 			setup: func() *Order {
-				o := NewOrder(1, 1, 1000)
-				o.SetID(42)
+				o := NewOrder(1, 1, 1, 1, 200)
 				_ = o.Cancel()
 				return o
 			},
@@ -108,7 +121,7 @@ func TestOrder_Cancel_Table(t *testing.T) {
 
 			events := o.PullEvents()
 			require.Len(t, events, 1)
-			require.Equal(t, NameCancel, events[0].Name())
+			require.Equal(t, NameOrderCancel, events[0].Name())
 			require.Empty(t, o.PullEvents())
 		})
 	}
@@ -165,11 +178,11 @@ func TestOrderStatus_OtherMethods(t *testing.T) {
 }
 
 func TestNewOrder(t *testing.T) {
-	o := NewOrder(10, 20, 5000)
+	o := NewOrder(1, 1, 1, 1, 200)
 
 	require.Equal(t, StatusCart, o.Status())
 	require.Equal(t, 1, o.Version())
-	require.Equal(t, int64(5000), o.Price())
+	require.Equal(t, int64(200), o.Price())
 	require.Empty(t, o.PullEvents())
 }
 
@@ -195,8 +208,7 @@ func TestNewOrderStatus_FromString(t *testing.T) {
 }
 
 func TestOrder_Confirm_FromConfirmed(t *testing.T) {
-	o := NewOrder(1, 1, 1000)
-	o.SetID(42)
+	o := NewOrder(1, 1, 1, 1, 200)
 
 	require.NoError(t, o.Confirm())
 
@@ -207,8 +219,7 @@ func TestOrder_Confirm_FromConfirmed(t *testing.T) {
 }
 
 func TestOrder_Cancel_FromConfirmed(t *testing.T) {
-	o := NewOrder(1, 1, 1000)
-	o.SetID(42)
+	o := NewOrder(1, 1, 1, 1, 200)
 
 	require.NoError(t, o.Confirm())
 
@@ -217,8 +228,7 @@ func TestOrder_Cancel_FromConfirmed(t *testing.T) {
 }
 
 func TestOrder_Getters(t *testing.T) {
-	o := NewOrder(10, 20, 5000)
-	o.SetID(99)
+	o := RehydrateOrder(99, 10, 20, 200, StatusCart, 1)
 
 	require.Equal(t, 99, o.ID())
 	require.Equal(t, 10, o.CustomerID())

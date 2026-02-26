@@ -8,22 +8,17 @@ import (
 
 type OrderRepository struct {
 	orders map[int]*domain.Order
-	nextID int
 }
 
 func NewOrderRepository() *OrderRepository {
 	return &OrderRepository{
 		orders: make(map[int]*domain.Order),
-		nextID: 1,
 	}
 }
 
 func (r *OrderRepository) Create(ctx context.Context, order *domain.Order) error {
-	id := r.nextID
-	r.nextID++
+	r.orders[order.ID()] = order
 
-	order.SetID(id)
-	r.orders[id] = order
 	return nil
 }
 

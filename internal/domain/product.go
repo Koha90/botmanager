@@ -2,15 +2,17 @@ package domain
 
 import (
 	"strings"
+	"time"
 )
 
 // Product represents the product.
 type Product struct {
 	id          int
+	categoryID  int
 	name        string
 	description string
-	imagePath   string
-	categoryID  int
+	imagePath   *string
+	variants    []ProductVariant
 }
 
 // NewProduct creates a new product.
@@ -18,6 +20,7 @@ type Product struct {
 // or error if name empty or invalids
 // and category id is invalid.
 func NewProduct(
+	id int,
 	name string,
 	categoryID int,
 	description string,
@@ -32,10 +35,11 @@ func NewProduct(
 	}
 
 	return &Product{
+		id:          id,
 		name:        name,
 		categoryID:  categoryID,
 		description: description,
-		imagePath:   imagePath,
+		imagePath:   &imagePath,
 	}, nil
 }
 
@@ -46,19 +50,49 @@ func (p *Product) ID() int {
 	return p.id
 }
 
+// CategoryID returns identifier category of product.
+func (p *Product) CategoryID() int {
+	return p.categoryID
+}
+
 // Name return name of product.
 func (p *Product) Name() string {
 	return p.name
 }
 
-// Description return description of product.
+// Description returns description of product.
 func (p *Product) Description() string {
 	return p.description
 }
 
-// ImageURL return imageurl of product.
-func (p *Product) ImagePath() *string {
-	return &p.imagePath
+// ImagePath returns imageurl of product.
+func (p *Product) ImagePath() string {
+	return *p.imagePath
+}
+
+// VariantByID returns variant product of product
+// or error if variant was not found.
+func (p *Product) VariantByID(id int) (*ProductVariant, error) {
+	for i := range p.variants {
+		v := &p.variants[i]
+		if v.ID() == id && v.IsActive() {
+			return v, nil
+		}
+	}
+
+	return nil, ErrVariantNotFound
+}
+
+// ActiveVariants returns of copy the variants if this active.
+func (p *Product) ActiveVariants() []ProductVariant {
+	var result []ProductVariant
+	for _, v := range p.variants {
+		if v.IsActive() {
+			result = append(result, v)
+		}
+	}
+
+	return result
 }
 
 // ---- CHANEGERS ----
@@ -91,13 +125,63 @@ func (p *Product) UpdateDescription(description string) {
 
 // ---- SETTERS ----
 
-// SetID sets the product identifier.
-// Returns error if identifier is invalid.
-func (p *Product) SetID(id int) error {
-	if id <= 0 {
-		return ErrInvalidProductID
+func (p *Product) AddVariant(
+	variantID int,
+	packSize string,
+	districtID int,
+	price int64,
+) error {
+	if variantID <= 0 {
+		return ErrInvalidVariantID
 	}
 
-	p.id = id
+	for _, v := range p.variants {
+		if v.ID() == variantID {
+			return ErrVariantAlreadyExists
+		}
+	}
+
+	v, err := NewProductVariant(
+		variantID,
+		p.id,
+		packSize,
+		districtID,
+		price,
+	)
+	if err != nil {
+		return err
+	}
+
+	p.variants = append(p.variants, *v)
+	return nil
+}
+
+func (p *Product) HasVariants() bool {
+	return len(p.variants) > 0
+}
+
+// ArchiveVariant ...
+func (p *Product) ArchiveVariant(id int, now time.Time) error {
+	activeCount := 0
+	var target *ProductVariant
+
+	for i := range p.variants {
+		if p.variants[i].IsActive() {
+			activeCount++
+		}
+		if p.variants[i].ID() == id && p.variants[i].IsActive() {
+			target = &p.variants[i]
+		}
+	}
+
+	if target == nil {
+		return ErrVariantNotFound
+	}
+
+	if activeCount <= 1 && target.IsActive() {
+		return ErrCannotArchiveLastVariant
+	}
+
+	target.Archive(now)
 	return nil
 }
