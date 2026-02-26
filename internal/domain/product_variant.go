@@ -31,7 +31,7 @@ func NewProductVariant(
 	}
 
 	if districtID <= 0 {
-		return nil, ErrInvalidDisctrictID
+		return nil, ErrInvalidDistrictID
 	}
 
 	if price <= 0 {

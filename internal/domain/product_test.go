@@ -11,7 +11,7 @@ func TestProduct_AddVariant(t *testing.T) {
 
 	require.Equal(t, 1, p.Version())
 
-	err := p.AddVariant(1, "1p", 1, 100)
+	err := p.AddVariant("1p", 1, 100)
 	require.NoError(t, err)
 	require.Equal(t, 2, p.Version())
 }

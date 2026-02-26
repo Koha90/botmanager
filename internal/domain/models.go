@@ -8,24 +8,6 @@ package domain
 
 import "time"
 
-type City struct {
-	ID   int
-	Name string
-}
-
-type Category struct {
-	ID     string
-	Name   string
-	CityID int
-}
-
-type District struct {
-	ID         int
-	Name       string
-	CategoryID int
-	CityID     int
-}
-
 type Transaction struct {
 	ID         int
 	CustomerID int
