@@ -1,12 +1,17 @@
 package domain
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // District represent the district of the city.
 type District struct {
-	id     int
-	cityID int
-	name   string
+	id        int
+	cityID    int
+	name      string
+	createdAt time.Time
+	updatedAt time.Time
 }
 
 // NewDistrict creates a new district of city.
@@ -21,13 +26,27 @@ func NewDistrict(cityID int, name string) (*District, error) {
 		return nil, ErrInvalidDistrictName
 	}
 
+	now := time.Now()
 	return &District{
-		cityID: cityID,
-		name:   name,
+		cityID:    cityID,
+		name:      name,
+		createdAt: now,
+		updatedAt: now,
 	}, nil
 }
 
 // ---- SETTERS ----
+
+// Rename renames the district
+// or returns error if new name is invalid.
+func (d *District) Rename(newName string) error {
+	if newName == "" {
+		return ErrInvalidDistrictName
+	}
+	d.name = newName
+	d.updatedAt = time.Now()
+	return nil
+}
 
 // SetID is used by repository layer only.
 func (d *District) SetID(id int) {
@@ -50,4 +69,14 @@ func (d *District) CityID() int {
 // Name returns name of the district.
 func (d *District) Name() string {
 	return d.name
+}
+
+// CreatedAt returns time where the district was create.
+func (d *District) CreatedAt() time.Time {
+	return d.createdAt
+}
+
+// UpdatedAt returns time where the district was update.
+func (d *District) UpdatedAt() time.Time {
+	return d.updatedAt
 }
