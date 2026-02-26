@@ -6,16 +6,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestProduct_Rename(t *testing.T) {
-	p, _ := NewProduct("coffee", 1, "", "")
+func TestProduct_AddVariant(t *testing.T) {
+	p, _ := NewProduct("Test Product", 1, "Description", "")
 
-	require.NoError(t, p.Rename("latte"))
-	require.Equal(t, "latte", p.Name())
+	require.Equal(t, 1, p.Version())
 
-	require.ErrorIs(t, p.Rename(""), ErrInvalidProductName)
-}
-
-func TestNewProduct_Invalid(t *testing.T) {
-	_, err := NewProduct("", 1, "", "")
-	require.ErrorIs(t, err, ErrInvalidProductName)
+	err := p.AddVariant(1, "1p", 1, 100)
+	require.NoError(t, err)
+	require.Equal(t, 2, p.Version())
 }

@@ -22,6 +22,7 @@ func NewProductService(repo ProductRepository) *ProductService {
 //
 // Returns created product.
 func (s *ProductService) Create(
+	id int,
 	ctx context.Context,
 	name string,
 	categoryID int,
@@ -30,6 +31,7 @@ func (s *ProductService) Create(
 ) (*domain.Product, error) {
 	// 1. Create domain entity (validation happens inside)
 	product, err := domain.NewProduct(
+		id,
 		name,
 		categoryID,
 		description,

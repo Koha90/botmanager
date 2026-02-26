@@ -8,7 +8,6 @@ import (
 // ProductVariant repesent a variant of product packaging.
 type ProductVariant struct {
 	id         int
-	productID  int
 	packSize   string
 	districtID int
 	price      int64
@@ -19,15 +18,13 @@ type ProductVariant struct {
 // packaging option with price and city district.
 // Returns error if price invalid.
 func NewProductVariant(
-	id int,
-	productID int,
 	packSize string,
 	districtID int,
 	price int64,
 ) (*ProductVariant, error) {
-	if productID <= 0 {
-		return nil, ErrInvalidProductID
-	}
+	// if productID <= 0 {
+	// 	return nil, ErrInvalidProductID
+	// }
 
 	if strings.TrimSpace(packSize) == "" {
 		return nil, ErrInvalidPackSize
@@ -42,13 +39,13 @@ func NewProductVariant(
 	}
 
 	return &ProductVariant{
-		id:         id,
-		productID:  productID,
 		packSize:   packSize,
 		districtID: districtID,
 		price:      price,
 	}, nil
 }
+
+// ---- SETTERS ----
 
 // ChangePrice changes the price of the product.
 // Returns error if price invalid.
@@ -72,6 +69,13 @@ func (v *ProductVariant) ChangePackSize(packSize string) error {
 	return nil
 }
 
+// SetID is used by repository layer only.
+func (v *ProductVariant) SetID(id int) {
+	v.id = id
+}
+
+// ---- GETTERS ----
+
 // ByID returns product variant.
 func (v *ProductVariant) ID() int {
 	return v.id
@@ -83,9 +87,9 @@ func (v *ProductVariant) Price() int64 {
 }
 
 // ProductID returns identidier of product.
-func (v *ProductVariant) ProductID() int {
-	return v.productID
-}
+// func (v *ProductVariant) ProductID() int {
+// 	return v.productID
+// }
 
 // Archive settup date of archived variant.
 func (v *ProductVariant) Archive(now time.Time) {

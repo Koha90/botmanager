@@ -91,7 +91,7 @@ func TestCreateOrder_SetsCartStatusAndPrice(t *testing.T) {
 	orderRepo := memory.NewOrderRepository()
 
 	// seed
-	product, _ := domain.NewProduct("Test", 1, "TestDesc", "")
+	product, _ := domain.NewProduct(1, "Test", 1, "TestDesc", "")
 	_ = productRepo.Create(ctx, product)
 
 	bus := &fakeBus{}
@@ -99,13 +99,13 @@ func TestCreateOrder_SetsCartStatusAndPrice(t *testing.T) {
 	service := NewOrderService(
 		productRepo,
 		orderRepo,
-		orderRepo,
+		memory.NewMemoryIDGenerator(),
 		memory.NewTxManager(mu),
 		bus,
 		slog.Default(),
 	)
 
-	order, err := service.Create(ctx, 1, product.ID())
+	order, err := service.Create(ctx, 1, product.ID(), 1)
 
 	require.NoError(t, err)
 	require.Equal(t, domain.StatusCart, order.Status())
@@ -117,14 +117,21 @@ func TestCreateOrder_SetsCartStatusAndPrice(t *testing.T) {
 func TestConfirmOrder_ChangesStatusAndPublishesEvent(t *testing.T) {
 	ctx := context.Background()
 
-	order := domain.NewOrder(1, 10, 1500)
+	order := domain.NewOrder(1, 1, 1, 1, 1500)
 
 	repo := &fakeOrderRepo{order: order}
 	tx := &fakeTx{}
 	bus := &fakeBus{}
 	logger := slog.Default()
 
-	service := NewOrderService(nil, repo, repo, tx, bus, logger)
+	service := NewOrderService(
+		nil,
+		repo,
+		memory.NewMemoryIDGenerator(),
+		tx,
+		bus,
+		logger,
+	)
 
 	err := service.Confirm(ctx, 1)
 	require.NoError(t, err)
@@ -147,13 +154,13 @@ func TestOrderService_Create_ProductNotFound(t *testing.T) {
 	service := NewOrderService(
 		productRepo,
 		orderRepo,
-		orderRepo,
+		memory.NewMemoryIDGenerator(),
 		memory.NewTxManager(mu),
 		bus,
 		slog.Default(),
 	)
 
-	_, err := service.Create(ctx, 1, 999)
+	_, err := service.Create(ctx, 1, 1, 999)
 
 	require.ErrorIs(t, err, domain.ErrProductNotFound)
 }
@@ -165,7 +172,7 @@ func TestOrderService_Confirm_Success(t *testing.T) {
 	productRepo := memory.NewProductRepository(mu)
 	orderRepo := memory.NewOrderRepository()
 
-	product, _ := domain.NewProduct("Test", 1000)
+	product, _ := domain.NewProduct(1, "Test", 1, "Desc", "")
 	_ = productRepo.Create(ctx, product)
 
 	bus := &fakeBus{}
@@ -173,13 +180,13 @@ func TestOrderService_Confirm_Success(t *testing.T) {
 	service := NewOrderService(
 		productRepo,
 		orderRepo,
-		orderRepo,
+		memory.NewMemoryIDGenerator(),
 		memory.NewTxManager(mu),
 		bus,
 		slog.Default(),
 	)
 
-	order, _ := service.Create(ctx, 1, product.ID())
+	order, _ := service.Create(ctx, 1, product.ID(), 1)
 
 	err := service.Confirm(ctx, order.ID())
 
@@ -189,7 +196,7 @@ func TestOrderService_Confirm_Success(t *testing.T) {
 func TestCreateOrder_SaveFails(t *testing.T) {
 	ctx := context.Background()
 
-	product, _ := domain.NewProduct("Test", 1000)
+	product, _ := domain.NewProduct(1, "Test", 1, "Desc", "")
 
 	productRepo := &fakeProductRepo{product: product}
 	orderRepo := &fakeOrderRepo{createErr: errors.New("db error")}
@@ -198,13 +205,13 @@ func TestCreateOrder_SaveFails(t *testing.T) {
 	service := NewOrderService(
 		productRepo,
 		orderRepo,
-		orderRepo,
+		memory.NewMemoryIDGenerator(),
 		&fakeTx{},
 		bus,
 		slog.Default(),
 	)
 
-	_, err := service.Create(ctx, 1, 1)
+	_, err := service.Create(ctx, 1, 1, 1)
 
 	require.Error(t, err)
 }
@@ -227,7 +234,7 @@ func TestConfirmOrder_NotFound(t *testing.T) {
 func TestConfirmOrder_UpdateFails(t *testing.T) {
 	ctx := context.Background()
 
-	order := domain.NewOrder(1, 1, 1000)
+	order := domain.NewOrder(1, 1, 1, 1, 1000)
 
 	repo := &fakeOrderRepo{
 		order:     order,
@@ -248,7 +255,7 @@ func TestConfirmOrder_UpdateFails(t *testing.T) {
 func TestCancelOrder_Success(t *testing.T) {
 	ctx := context.Background()
 
-	order := domain.NewOrder(1, 1, 1000)
+	order := domain.NewOrder(1, 1, 1, 1, 1000)
 
 	repo := &fakeOrderRepo{order: order}
 	tx := &fakeTx{}
@@ -277,7 +284,7 @@ func TestOrderService_Confirm(t *testing.T) {
 		{
 			name: "success",
 			setupRepo: func() *fakeOrderRepo {
-				order := domain.NewOrder(1, 1, 1000)
+				order := domain.NewOrder(1, 1, 1, 1, 1000)
 				return &fakeOrderRepo{order: order}
 			},
 			setupBus:     func() *fakeBus { return &fakeBus{} },
@@ -295,7 +302,7 @@ func TestOrderService_Confirm(t *testing.T) {
 		{
 			name: "already confirmed",
 			setupRepo: func() *fakeOrderRepo {
-				order := domain.NewOrder(1, 1, 1000)
+				order := domain.NewOrder(1, 1, 1, 1, 1000)
 				_ = order.Confirm()
 				return &fakeOrderRepo{order: order}
 			},
@@ -306,7 +313,7 @@ func TestOrderService_Confirm(t *testing.T) {
 		{
 			name: "update fails",
 			setupRepo: func() *fakeOrderRepo {
-				order := domain.NewOrder(1, 1, 1000)
+				order := domain.NewOrder(1, 1, 1, 1, 1000)
 				return &fakeOrderRepo{
 					order:     order,
 					updateErr: domain.ErrOrderUpdate,
@@ -318,7 +325,7 @@ func TestOrderService_Confirm(t *testing.T) {
 		{
 			name: "publishe fail",
 			setupRepo: func() *fakeOrderRepo {
-				order := domain.NewOrder(1, 1, 1000)
+				order := domain.NewOrder(1, 1, 1, 1, 1000)
 				return &fakeOrderRepo{order: order}
 			},
 			setupBus:    func() *fakeBus { return &fakeBus{err: domain.ErrOrderPublish} },
@@ -335,7 +342,7 @@ func TestOrderService_Confirm(t *testing.T) {
 			service := NewOrderService(
 				nil,
 				repo,
-				repo,
+				memory.NewMemoryIDGenerator(),
 				tx,
 				bus,
 				slog.Default(),
@@ -373,5 +380,5 @@ func ptr[T any](v T) *T {
 }
 
 func newTestService(repo *fakeOrderRepo, tx *fakeTx, bus *fakeBus) *OrderService {
-	return NewOrderService(nil, repo, repo, tx, bus, slog.Default())
+	return NewOrderService(nil, repo, memory.NewMemoryIDGenerator(), tx, bus, slog.Default())
 }

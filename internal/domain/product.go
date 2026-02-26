@@ -13,6 +13,10 @@ type Product struct {
 	description string
 	imagePath   *string
 	variants    []ProductVariant
+
+	version int
+
+	events []DomainEvent
 }
 
 // NewProduct creates a new product.
@@ -20,7 +24,6 @@ type Product struct {
 // or error if name empty or invalids
 // and category id is invalid.
 func NewProduct(
-	id int,
 	name string,
 	categoryID int,
 	description string,
@@ -35,11 +38,11 @@ func NewProduct(
 	}
 
 	return &Product{
-		id:          id,
 		name:        name,
 		categoryID:  categoryID,
 		description: description,
 		imagePath:   &imagePath,
+		version:     1,
 	}, nil
 }
 
@@ -68,6 +71,11 @@ func (p *Product) Description() string {
 // ImagePath returns imageurl of product.
 func (p *Product) ImagePath() string {
 	return *p.imagePath
+}
+
+// Variant returns version of product.
+func (p *Product) Version() int {
+	return p.version
 }
 
 // VariantByID returns variant product of product
@@ -104,6 +112,7 @@ func (p *Product) Rename(name string) error {
 	}
 
 	p.name = name
+	p.version++
 	return nil
 }
 
@@ -125,34 +134,32 @@ func (p *Product) UpdateDescription(description string) {
 
 // ---- SETTERS ----
 
+// SetID is used by repository layer only.
+func (p *Product) SetID(id int) {
+	p.id = id
+}
+
 func (p *Product) AddVariant(
-	variantID int,
 	packSize string,
 	districtID int,
 	price int64,
 ) error {
-	if variantID <= 0 {
-		return ErrInvalidVariantID
-	}
-
 	for _, v := range p.variants {
-		if v.ID() == variantID {
+		if v.packSize == packSize &&
+			v.districtID == districtID &&
+			v.IsActive() {
 			return ErrVariantAlreadyExists
 		}
 	}
 
-	v, err := NewProductVariant(
-		variantID,
-		p.id,
-		packSize,
-		districtID,
-		price,
-	)
+	v, err := NewProductVariant(packSize, districtID, price)
 	if err != nil {
 		return err
 	}
 
 	p.variants = append(p.variants, *v)
+	p.version++
+	p.addEvent(NewProductVariantAdded(v.ID()))
 	return nil
 }
 
@@ -160,7 +167,7 @@ func (p *Product) HasVariants() bool {
 	return len(p.variants) > 0
 }
 
-// ArchiveVariant ...
+// ArchiveVariant set product variant to archive.
 func (p *Product) ArchiveVariant(id int, now time.Time) error {
 	activeCount := 0
 	var target *ProductVariant
@@ -183,5 +190,17 @@ func (p *Product) ArchiveVariant(id int, now time.Time) error {
 	}
 
 	target.Archive(now)
+	p.version++
+	p.addEvent(NewVariantArchived(id))
 	return nil
+}
+
+func (p *Product) addEvent(ev DomainEvent) {
+	p.events = append(p.events, ev)
+}
+
+func (p *Product) PullEvents() []DomainEvent {
+	ev := p.events
+	p.events = nil
+	return ev
 }

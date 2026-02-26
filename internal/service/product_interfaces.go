@@ -15,7 +15,6 @@ type ProductRepository interface {
 	Create(ctx context.Context, product *domain.Product) error
 	Update(ctx context.Context, product *domain.Product) error
 	Delete(ctx context.Context, id int) error
-	VariantByID(ctx context.Context, id int) (*domain.ProductVariant, error)
 }
 
 type productCreator interface {
@@ -24,7 +23,7 @@ type productCreator interface {
 
 type productReader interface {
 	ByID(ctx context.Context, id int) (*domain.Product, error)
-	VariantByID(id int) (*domain.ProductVariant, error)
+	// VariantByID(id int) (*domain.ProductVariant, error)
 }
 
 type productUpdater interface {

@@ -19,7 +19,7 @@ func buildOrderService(logger *slog.Logger) *service.OrderService {
 
 	// Seed data
 	{
-		p, err := domain.NewProduct("Test product", 1, "Desc Test", "")
+		p, err := domain.NewProduct(1, "test name", 1, "test distriction", "")
 		if err != nil {
 			panic(err)
 		}

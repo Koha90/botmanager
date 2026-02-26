@@ -12,9 +12,24 @@ type DomainEvent interface {
 }
 
 const (
+	// Orders
 	NameOrderConfirm string = "order_confirmed"
 	NameOrderCancel  string = "order_cancelled"
+
+	// Products
+	NameProductVariantAdded    string = "product variant added"
+	NameProductVariantArchived string = "product variant archived"
 )
+
+type ProductVariantAdded struct {
+	ProductVariantID int
+	at               time.Time
+}
+
+type ProductVariantArchived struct {
+	ProductVariantID int
+	at               time.Time
+}
 
 type OrderConfirmed struct {
 	OrderID int
@@ -26,6 +41,37 @@ type OrderCanceled struct {
 	at      time.Time
 }
 
+func NewProductVariantAdded(productVariantID int) ProductVariantAdded {
+	return ProductVariantAdded{
+		ProductVariantID: productVariantID,
+		at:               time.Now(),
+	}
+}
+
+func (v ProductVariantAdded) Name() string {
+	return NameProductVariantAdded
+}
+
+func (v ProductVariantAdded) OccurredAt() time.Time {
+	return v.at
+}
+
+func NewVariantArchived(productVariantID int) ProductVariantArchived {
+	return ProductVariantArchived{
+		ProductVariantID: productVariantID,
+		at:               time.Now(),
+	}
+}
+
+func (v ProductVariantArchived) Name() string {
+	return NameProductVariantArchived
+}
+
+func (v ProductVariantArchived) OccurredAt() time.Time {
+	return v.at
+}
+
+// NewOrderConfirmed set time where order was confirmed.
 func NewOrderConfirmed(orderID int) OrderConfirmed {
 	return OrderConfirmed{
 		OrderID: orderID,

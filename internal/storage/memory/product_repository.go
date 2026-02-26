@@ -28,7 +28,6 @@ func (r *ProductRepository) Create(
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	product.SetID(r.nextID)
 	r.products[r.nextID] = product
 	r.nextID++
 

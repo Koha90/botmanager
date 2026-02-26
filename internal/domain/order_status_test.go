@@ -33,14 +33,14 @@ func TestNewOrderStatus(t *testing.T) {
 		{
 			name: "success",
 			setup: func() *Order {
-				o := NewOrder(1, 1, 1, 1, 200)
+				o := NewOrder(1, 1, 1, 200)
 				return o
 			},
 		},
 		{
 			name: "already confirmed",
 			setup: func() *Order {
-				o := NewOrder(1, 1, 1, 1, 200)
+				o := NewOrder(1, 1, 1, 200)
 				_ = o.Confirm()
 				return o
 			},
@@ -49,7 +49,7 @@ func TestNewOrderStatus(t *testing.T) {
 		{
 			name: "invalid state after cancel",
 			setup: func() *Order {
-				o := NewOrder(1, 1, 1, 1, 200)
+				o := NewOrder(1, 1, 1, 200)
 				_ = o.Cancel()
 				return o
 			},
@@ -89,14 +89,14 @@ func TestOrder_Cancel_Table(t *testing.T) {
 		{
 			name: "success",
 			setup: func() *Order {
-				o := NewOrder(1, 1, 1, 1, 200)
+				o := NewOrder(1, 1, 1, 200)
 				return o
 			},
 		},
 		{
 			name: "already canceled",
 			setup: func() *Order {
-				o := NewOrder(1, 1, 1, 1, 200)
+				o := NewOrder(1, 1, 1, 200)
 				_ = o.Cancel()
 				return o
 			},
@@ -178,7 +178,7 @@ func TestOrderStatus_OtherMethods(t *testing.T) {
 }
 
 func TestNewOrder(t *testing.T) {
-	o := NewOrder(1, 1, 1, 1, 200)
+	o := NewOrder(1, 1, 1, 200)
 
 	require.Equal(t, StatusCart, o.Status())
 	require.Equal(t, 1, o.Version())
@@ -208,7 +208,7 @@ func TestNewOrderStatus_FromString(t *testing.T) {
 }
 
 func TestOrder_Confirm_FromConfirmed(t *testing.T) {
-	o := NewOrder(1, 1, 1, 1, 200)
+	o := NewOrder(1, 1, 1, 200)
 
 	require.NoError(t, o.Confirm())
 
@@ -219,7 +219,7 @@ func TestOrder_Confirm_FromConfirmed(t *testing.T) {
 }
 
 func TestOrder_Cancel_FromConfirmed(t *testing.T) {
-	o := NewOrder(1, 1, 1, 1, 200)
+	o := NewOrder(1, 1, 1, 200)
 
 	require.NoError(t, o.Confirm())
 
