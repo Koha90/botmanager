@@ -2,57 +2,70 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	"botmanager/internal/domain"
 )
 
 type ProductService struct {
-	repo ProductRepository
+	repo   ProductRepository
+	logger *slog.Logger
 }
 
-// NewProductService creates new ProductSevice.
-func NewProductService(repo ProductRepository) *ProductService {
-	return &ProductService{
-		repo: repo,
-	}
+func NewProductService(r ProductRepository) *ProductService {
+	return &ProductService{repo: r}
 }
 
-// Create validate input, create domain entity
-// and persist it using repository.
-//
-// Returns created product.
-func (s *ProductService) Create(
-	id int,
+func (s *ProductService) CreateProduct(
 	ctx context.Context,
 	name string,
 	categoryID int,
 	description string,
 	imagePath string,
 ) (*domain.Product, error) {
-	// 1. Create domain entity (validation happens inside)
-	product, err := domain.NewProduct(
-		id,
-		name,
-		categoryID,
-		description,
-		imagePath,
-	)
+	p, err := domain.NewProduct(name, categoryID, description, imagePath)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Persist
-	if err := s.repo.Create(ctx, product); err != nil {
+	if err := s.repo.Save(ctx, p); err != nil {
 		return nil, err
 	}
 
-	return product, nil
+	return p, nil
 }
 
-// ByID returns product by identifier.
-func (s *ProductService) ByID(
+func (s *ProductService) AddVariant(
 	ctx context.Context,
-	id int,
-) (*domain.Product, error) {
-	return s.repo.ByID(ctx, id)
+	productID int,
+	packSize string,
+	districtID int,
+	price int64,
+) error {
+	p, err := s.repo.ByID(ctx, productID)
+	if err != nil {
+		s.logger.Error("failed to load product", "id", productID, "err", err)
+		return err
+	}
+
+	if err := p.AddVariant(packSize, districtID, price); err != nil {
+		s.logger.Warn("failed to add variant", "productID", productID, "err", err)
+		return err
+	}
+
+	if err := s.repo.Save(ctx, p); err != nil {
+		s.logger.Error("failed to save product", "id", productID, "err", err)
+		return err
+	}
+
+	s.logger.Info(
+		"variant added",
+		"productID",
+		productID,
+		"packSize",
+		packSize,
+		"districtID",
+		districtID,
+	)
+	return nil
 }

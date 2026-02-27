@@ -11,6 +11,8 @@ type ProductVariant struct {
 	packSize   string
 	districtID int
 	price      int64
+
+	version    int
 	archivedAt *time.Time
 }
 
@@ -42,7 +44,25 @@ func NewProductVariant(
 		packSize:   packSize,
 		districtID: districtID,
 		price:      price,
+		version:    1,
 	}, nil
+}
+
+// NewProductVariantFromDB used only repository.
+func NewProductVariantFromDB(
+	id int,
+	packSize string,
+	distrcitID int,
+	price int64,
+	archivedAt *time.Time,
+) ProductVariant {
+	return ProductVariant{
+		id:         id,
+		packSize:   packSize,
+		districtID: distrcitID,
+		price:      price,
+		archivedAt: archivedAt,
+	}
 }
 
 // ---- SETTERS ----
@@ -86,10 +106,27 @@ func (v *ProductVariant) Price() int64 {
 	return v.price
 }
 
-// ProductID returns identidier of product.
-// func (v *ProductVariant) ProductID() int {
-// 	return v.productID
-// }
+// DistrictID returns district id of the variant product.
+func (v *ProductVariant) DistrictID() int {
+	return v.districtID
+}
+
+// ArchivedAt returns time were the variant product was archived.
+func (v *ProductVariant) ArchivedAt() time.Time {
+	return *v.archivedAt
+}
+
+// PackSize returns pack size of the variant product.
+func (v *ProductVariant) PackSize() string {
+	return v.packSize
+}
+
+// Version returns version of the variant product.
+func (v *ProductVariant) Version() int {
+	return v.version
+}
+
+// ---- CHANGERS ----
 
 // Archive settup date of archived variant.
 func (v *ProductVariant) Archive(now time.Time) {

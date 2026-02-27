@@ -46,6 +46,27 @@ func NewProduct(
 	}, nil
 }
 
+func NewProductFromDB(
+	id int,
+	categoryID int,
+	name string,
+	description string,
+	imagePath *string,
+	version int,
+	variants []ProductVariant,
+) *Product {
+	return &Product{
+		id:          id,
+		categoryID:  categoryID,
+		name:        name,
+		description: description,
+		imagePath:   imagePath,
+		variants:    variants,
+		version:     version,
+		events:      nil,
+	}
+}
+
 // ---- GETTERS ----
 
 // ID return id of product.
@@ -69,8 +90,8 @@ func (p *Product) Description() string {
 }
 
 // ImagePath returns imageurl of product.
-func (p *Product) ImagePath() string {
-	return *p.imagePath
+func (p *Product) ImagePath() *string {
+	return p.imagePath
 }
 
 // Variant returns version of product.
@@ -139,6 +160,13 @@ func (p *Product) SetID(id int) {
 	p.id = id
 }
 
+// SetVariantID
+func (p *Product) SetVariantID(index int, id int) {
+	if index >= 0 && index < len(p.variants) {
+		p.variants[index].SetID(id)
+	}
+}
+
 func (p *Product) AddVariant(
 	packSize string,
 	districtID int,
@@ -193,6 +221,15 @@ func (p *Product) ArchiveVariant(id int, now time.Time) error {
 	p.version++
 	p.addEvent(NewVariantArchived(id))
 	return nil
+}
+
+// VariantForUpdate returns ptr of ProductVariant.
+func (p *Product) VariantForUpdate() []*ProductVariant {
+	var result []*ProductVariant
+	for i := range p.variants {
+		result = append(result, &p.variants[i])
+	}
+	return result
 }
 
 func (p *Product) addEvent(ev DomainEvent) {
