@@ -6,3 +6,5 @@ CREATE TABLE IF NOT EXISTS products(
   image_path TEXT,
   version INT NOT NULL DEFAULT 1
 );
+
+CREATE INDEX idx_products_category_id ON products(category_id);

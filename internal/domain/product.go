@@ -8,7 +8,7 @@ import (
 // Product represents the product.
 type Product struct {
 	id          int
-	categoryID  int
+	categoryID  *int
 	name        string
 	description string
 	imagePath   *string
@@ -39,7 +39,7 @@ func NewProduct(
 
 	return &Product{
 		name:        name,
-		categoryID:  categoryID,
+		categoryID:  &categoryID,
 		description: description,
 		imagePath:   &imagePath,
 		version:     1,
@@ -48,7 +48,7 @@ func NewProduct(
 
 func NewProductFromDB(
 	id int,
-	categoryID int,
+	categoryID *int,
 	name string,
 	description string,
 	imagePath *string,
@@ -75,7 +75,7 @@ func (p *Product) ID() int {
 }
 
 // CategoryID returns identifier category of product.
-func (p *Product) CategoryID() int {
+func (p *Product) CategoryID() *int {
 	return p.categoryID
 }
 
@@ -142,7 +142,7 @@ func (p *Product) ChangeCategory(categoryID int) error {
 	if categoryID <= 0 {
 		return ErrInvalidCategoryID
 	}
-	p.categoryID = categoryID
+	p.categoryID = &categoryID
 	return nil
 }
 

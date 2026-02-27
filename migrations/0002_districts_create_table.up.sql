@@ -4,3 +4,5 @@ CREATE TABLE IF NOT EXISTS districts(
   name TEXT NOT NULL,
   UNIQUE(city_id, name)
 );
+
+CREATE INDEX idx_districts_city_id ON districts(city_id);
