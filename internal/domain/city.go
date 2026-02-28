@@ -1,8 +1,14 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"time"
+)
+
+var (
+	ErrInvalidCityName error = errors.New("invalid city name")
+	ErrInvalidCityID   error = errors.New("invalid city id")
 )
 
 // City represent the city.

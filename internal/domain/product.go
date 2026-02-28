@@ -1,8 +1,17 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"time"
+)
+
+var (
+	ErrProductNotFound    error = errors.New("product not found")
+	ErrInvalidProductName error = errors.New("invalid product name")
+	ErrInvalidCategoryID  error = errors.New("invalid category id")
+	ErrInvalidImageURL    error = errors.New("invalid image url")
+	ErrInvalidProductID   error = errors.New("invalid product id")
 )
 
 // Product represents the product.

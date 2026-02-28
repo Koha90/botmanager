@@ -1,9 +1,12 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"time"
 )
+
+var ErrInvalidCategoryName error = errors.New("invalid category name")
 
 // Category represent category of the product.
 type Category struct {

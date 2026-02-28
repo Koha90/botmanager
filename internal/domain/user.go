@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"time"
 )
 
@@ -9,6 +10,11 @@ type Role string
 const (
 	RoleCustomer Role = "customer"
 	RoleAdmin    Role = "admin"
+)
+
+var (
+	ErrInvalidRole        error = errors.New("invalid user role")
+	ErrInvalidCredentials error = errors.New("invalid credantials")
 )
 
 // User represent user of the application.

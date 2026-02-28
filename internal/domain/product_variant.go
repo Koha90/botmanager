@@ -1,8 +1,20 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"time"
+)
+
+var (
+	ErrVariantNotFound          error = errors.New("product variant not found")
+	ErrInvalidProductPrice      error = errors.New("invalid product price")
+	ErrInvalidPackSize          error = errors.New("invalid pack size")
+	ErrInvalidDistrictID        error = errors.New("invalid district id")
+	ErrInvalidVariant           error = errors.New("invalid variant")
+	ErrInvalidVariantID         error = errors.New("invalid variant id")
+	ErrCannotArchiveLastVariant error = errors.New("cannot archive last variant")
+	ErrVariantAlreadyExists     error = errors.New("variant already exists")
 )
 
 // ProductVariant repesent a variant of product packaging.
