@@ -2,63 +2,65 @@ package domain
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestOrder_Confirm_Table(t *testing.T) {
-	tests := []struct {
-		name      string
-		setup     func() *Order
-		expectErr error
-	}{
-		{
-			name:  "success",
-			setup: func() *Order { return NewOrder(1, 1, 1, 200) },
-		}, {
-			name: "already confirmed",
-			setup: func() *Order {
-				o := NewOrder(1, 1, 1, 200)
-				_ = o.Confirm()
-				return o
-			},
-			expectErr: ErrOrderAlreadyConfirmed,
-		},
+func TestNewOrder(t *testing.T) {
+	_, err := NewOrder(0, nil, time.Now())
+	require.ErrorIs(t, err, ErrInvalidOrderUserID)
+
+	_, err = NewOrder(1, []OrderItem{}, time.Now())
+	require.ErrorIs(t, err, ErrOrderEmpty)
+
+	items := []OrderItem{
+		{variantID: 1, quantity: 2, price: 100},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			o := tt.setup()
+	o, err := NewOrder(1, items, time.Now())
+	require.NoError(t, err)
+	require.Equal(t, int64(200), o.Total())
+	require.Equal(t, OrderStatusPending, o.Status())
+}
 
-			err := o.Confirm()
-			if tt.expectErr != nil {
-				require.ErrorIs(t, err, tt.expectErr)
-				return
-			}
-
-			require.NoError(t, err)
-			require.Equal(t, StatusConfirmed, o.Status())
-			require.Equal(t, 2, o.Version())
-
-			events := o.PullEvents()
-			require.Len(t, events, 1)
-			require.Equal(t, NameOrderConfirmed, events[0].Name())
-
-			require.Equal(t, int64(200), o.Price())
-
-			require.Empty(t, o.PullEvents())
-		})
+func TestOrder_MarkPaid(t *testing.T) {
+	items := []OrderItem{
+		{variantID: 1, quantity: 1, price: 100},
 	}
+
+	o, _ := NewOrder(1, items, time.Now())
+
+	err := o.MarkPaid(time.Now())
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusPaid, o.Status())
+
+	err = o.MarkPaid(time.Now())
+	require.ErrorIs(t, err, ErrOrderAlreadyPaid)
 }
 
 func TestOrder_Cancel(t *testing.T) {
-	o := NewOrder(1, 1, 1, 200)
+	items := []OrderItem{
+		{variantID: 1, quantity: 1, price: 100},
+	}
+
+	o, _ := NewOrder(1, items, time.Now())
 
 	require.NoError(t, o.Cancel())
-	require.Equal(t, StatusCancelled, o.Status())
-	require.Equal(t, 2, o.Version())
+	require.Equal(t, OrderStatusCancelled, o.Status())
 
-	evs := o.PullEvents()
-	require.Len(t, evs, 1)
-	require.Equal(t, NameOrderCanceled, evs[0].Name())
+	err := o.MarkPaid(time.Now())
+	require.ErrorIs(t, err, ErrOrderAlreadyCancelled)
+}
+
+func TestOrder_CannotCancelPaid(t *testing.T) {
+	items := []OrderItem{
+		{variantID: 1, quantity: 1, price: 100},
+	}
+
+	o, _ := NewOrder(1, items, time.Now())
+	_ = o.MarkPaid(time.Now())
+
+	err := o.Cancel()
+	require.ErrorIs(t, err, ErrOrderAlreadyPaid)
 }

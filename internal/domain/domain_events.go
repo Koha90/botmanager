@@ -2,10 +2,14 @@ package domain
 
 import "time"
 
-// DomainEvent represent a fact that happened inside the domain.
+// DomainEvent represent a business fact that occured inside the domain.
 //
-// Events are generate by aggregates and later published
+// Domain events are produced by aggregates to signal that something
+// meaningful has happened. They are later collected and published
 // by the application layer.
+//
+// The domain layer must not publish events directly.
+// It only records them.
 type DomainEvent interface {
 	Name() string
 	OccurredAt() time.Time
@@ -13,34 +17,34 @@ type DomainEvent interface {
 
 const (
 	// Orders
-	NameOrderConfirmed string = "order_confirmed"
-	NameOrderCanceled  string = "order_cancelled"
+	NameOrderConfirmed string = "order_paid"
+	NameOrderCancelled string = "order_cancelled"
 
 	// Products
-	NameProductVariantAdded    string = "product variant added"
-	NameProductVariantArchived string = "product variant archived"
+	NameProductVariantAdded    string = "product_variant_added"
+	NameProductVariantArchived string = "product_variant_archived"
 )
 
+// --------------------
+// Product Events
+// --------------------
+
+// ProductVariantAdded is emitted when a new product variant
+// is successfully added to a product aggregate.
 type ProductVariantAdded struct {
 	ProductVariantID int
 	at               time.Time
 }
 
+// ProductVariantArchived is emitted when a product variant
+// is archived and becomes unavailable for purchase.
 type ProductVariantArchived struct {
 	ProductVariantID int
 	at               time.Time
 }
 
-type OrderConfirmed struct {
-	OrderID int
-	at      time.Time
-}
-
-type OrderCanceled struct {
-	OrderID int
-	at      time.Time
-}
-
+// NewProductVariantAdded creates ProductVariantAdded event
+// with current timestamp.
 func NewProductVariantAdded(productVariantID int) ProductVariantAdded {
 	return ProductVariantAdded{
 		ProductVariantID: productVariantID,
@@ -48,14 +52,18 @@ func NewProductVariantAdded(productVariantID int) ProductVariantAdded {
 	}
 }
 
+// Name returns event type identifier.
 func (v ProductVariantAdded) Name() string {
 	return NameProductVariantAdded
 }
 
+// OccurredAt returns event timestamp.
 func (v ProductVariantAdded) OccurredAt() time.Time {
 	return v.at
 }
 
+// NewVariantArchived creates ProductVarianArchived event
+// with current timestamp.
 func NewVariantArchived(productVariantID int) ProductVariantArchived {
 	return ProductVariantArchived{
 		ProductVariantID: productVariantID,
@@ -63,41 +71,68 @@ func NewVariantArchived(productVariantID int) ProductVariantArchived {
 	}
 }
 
+// Name returns event type identifier.
 func (v ProductVariantArchived) Name() string {
 	return NameProductVariantArchived
 }
 
+// OccurredAt returns event timestamp.
 func (v ProductVariantArchived) OccurredAt() time.Time {
 	return v.at
 }
 
-// NewOrderConfirmed set time where order was confirmed.
-func NewOrderConfirmed(orderID int) OrderConfirmed {
-	return OrderConfirmed{
+// --------------------
+// Order Events
+// --------------------
+
+// OrderConfirmed is emitted when an order
+// transitions from pending to paid state.
+type OrderPaid struct {
+	OrderID int
+	at      time.Time
+}
+
+// OrderCancelled is emitted when an order
+// transitions from pending to cancelled state.
+type OrderCancelled struct {
+	OrderID int
+	at      time.Time
+}
+
+// NewOrderPaid creates OrderPaid event
+// with current timestamp.
+func NewOrderPaid(orderID int) OrderPaid {
+	return OrderPaid{
 		OrderID: orderID,
 		at:      time.Now(),
 	}
 }
 
-func (e OrderConfirmed) Name() string {
+// Name returns event type identifier.
+func (e OrderPaid) Name() string {
 	return NameOrderConfirmed
 }
 
-func (e OrderConfirmed) OccurredAt() time.Time {
+// OccurredAt returns event timestamp.
+func (e OrderPaid) OccurredAt() time.Time {
 	return e.at
 }
 
-func NewOrderCanceled(orderID int) OrderCanceled {
-	return OrderCanceled{
+// NewOrderCanceled creates OrderCancelled event
+// with current timestamp.
+func NewOrderCancelled(orderID int) OrderCancelled {
+	return OrderCancelled{
 		OrderID: orderID,
 		at:      time.Now(),
 	}
 }
 
-func (e OrderCanceled) Name() string {
-	return NameOrderCanceled
+// Name returns event type identifier.
+func (e OrderCancelled) Name() string {
+	return NameOrderCancelled
 }
 
-func (e OrderCanceled) OccurredAt() time.Time {
+// OccurredAt returns event timestamp.
+func (e OrderCancelled) OccurredAt() time.Time {
 	return e.at
 }

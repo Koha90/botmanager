@@ -1,9 +1,12 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 	"time"
 )
+
+var ErrInvalidDistrictName error = errors.New("invalid district name")
 
 // District represent the district of the city.
 type District struct {
