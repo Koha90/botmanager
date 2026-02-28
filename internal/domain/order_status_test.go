@@ -74,7 +74,7 @@ func TestNewOrderStatus(t *testing.T) {
 
 			events := o.PullEvents()
 			require.Len(t, events, 1)
-			require.Equal(t, NameOrderConfirm, events[0].Name())
+			require.Equal(t, NameOrderConfirmed, events[0].Name())
 			require.Empty(t, o.PullEvents())
 		})
 	}
@@ -121,7 +121,7 @@ func TestOrder_Cancel_Table(t *testing.T) {
 
 			events := o.PullEvents()
 			require.Len(t, events, 1)
-			require.Equal(t, NameOrderCancel, events[0].Name())
+			require.Equal(t, NameOrderCanceled, events[0].Name())
 			require.Empty(t, o.PullEvents())
 		})
 	}
@@ -233,4 +233,50 @@ func TestOrder_Getters(t *testing.T) {
 	require.Equal(t, 99, o.ID())
 	require.Equal(t, 10, o.CustomerID())
 	require.Equal(t, 20, o.ProductID())
+}
+
+func TestOrder_Cancel_ErrorDoesNotChangeVersion(t *testing.T) {
+	o := NewOrder(1, 1, 1, 200)
+
+	require.NoError(t, o.Cancel())
+	v := o.Version()
+
+	err := o.Cancel()
+	require.Error(t, err)
+
+	require.Equal(t, v, o.Version())
+}
+
+func TestOrder_Confirm_ErrorDoesNotChangeVersion(t *testing.T) {
+	o := NewOrder(1, 1, 1, 200)
+
+	require.NoError(t, o.Confirm())
+	v := o.Version()
+
+	err := o.Confirm()
+	require.Error(t, err)
+
+	require.Equal(t, v, o.Version())
+}
+
+func TestOrder_NoEventOnFailedTransition(t *testing.T) {
+	o := NewOrder(1, 1, 1, 200)
+
+	require.NoError(t, o.Confirm())
+	_ = o.PullEvents()
+
+	err := o.Confirm()
+	require.Error(t, err)
+
+	require.Empty(t, o.PullEvents())
+}
+
+func TestRehydrateOrder(t *testing.T) {
+	o := RehydrateOrder(10, 1, 1, 200, StatusCart, 5)
+
+	require.Equal(t, 5, o.Version())
+	require.Empty(t, o.PullEvents())
+
+	require.NoError(t, o.Confirm())
+	require.Equal(t, 6, o.Version())
 }

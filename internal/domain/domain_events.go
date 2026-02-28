@@ -13,8 +13,8 @@ type DomainEvent interface {
 
 const (
 	// Orders
-	NameOrderConfirm string = "order_confirmed"
-	NameOrderCancel  string = "order_cancelled"
+	NameOrderConfirmed string = "order_confirmed"
+	NameOrderCanceled  string = "order_cancelled"
 
 	// Products
 	NameProductVariantAdded    string = "product variant added"
@@ -80,7 +80,7 @@ func NewOrderConfirmed(orderID int) OrderConfirmed {
 }
 
 func (e OrderConfirmed) Name() string {
-	return NameOrderConfirm
+	return NameOrderConfirmed
 }
 
 func (e OrderConfirmed) OccurredAt() time.Time {
@@ -95,7 +95,7 @@ func NewOrderCanceled(orderID int) OrderCanceled {
 }
 
 func (e OrderCanceled) Name() string {
-	return NameOrderCancel
+	return NameOrderCanceled
 }
 
 func (e OrderCanceled) OccurredAt() time.Time {

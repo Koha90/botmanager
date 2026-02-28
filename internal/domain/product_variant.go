@@ -112,8 +112,8 @@ func (v *ProductVariant) DistrictID() int {
 }
 
 // ArchivedAt returns time were the variant product was archived.
-func (v *ProductVariant) ArchivedAt() time.Time {
-	return *v.archivedAt
+func (v *ProductVariant) ArchivedAt() *time.Time {
+	return v.archivedAt
 }
 
 // PackSize returns pack size of the variant product.

@@ -30,9 +30,8 @@ var (
 	// tx errors
 
 	// city errors
-	ErrInvalidCityName     error = errors.New("invalid city name")
-	ErrInvalidCityID       error = errors.New("invalid city id")
-	ErrInvalidDistrictName error = errors.New("invalid district name")
+	ErrInvalidCityName error = errors.New("invalid city name")
+	ErrInvalidCityID   error = errors.New("invalid city id")
 
 	// category errors
 	ErrInvalidCategoryName error = errors.New("invalid category name")
@@ -40,4 +39,7 @@ var (
 	// user errors
 	ErrInvalidRole        error = errors.New("invalid user role")
 	ErrInvalidCredentials error = errors.New("invalid credantials ")
+
+	// district errors
+	ErrInvalidDistrictName error = errors.New("invalid district name")
 )

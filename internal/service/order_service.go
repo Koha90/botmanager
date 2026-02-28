@@ -61,13 +61,7 @@ func (s *OrderService) Create(
 			return err
 		}
 
-		id, err := s.idGen.NextOrderID(ctx)
-		if err != nil {
-			return err
-		}
-
 		order := domain.NewOrder(
-			id,
 			customerID,
 			productID,
 			variant.ID(),

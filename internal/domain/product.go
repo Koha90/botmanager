@@ -112,7 +112,7 @@ func (p *Product) VariantByID(id int) (*ProductVariant, error) {
 	return nil, ErrVariantNotFound
 }
 
-// ActiveVariants returns of copy the variants if this active.
+// ActiveVariants returns of copy the list variants if this active.
 func (p *Product) ActiveVariants() []ProductVariant {
 	var result []ProductVariant
 	for _, v := range p.variants {
@@ -223,8 +223,8 @@ func (p *Product) ArchiveVariant(id int, now time.Time) error {
 	return nil
 }
 
-// VariantForUpdate returns ptr of ProductVariant.
-func (p *Product) VariantForUpdate() []*ProductVariant {
+// VariantsForUpdate returns ptr of ProductVariant.
+func (p *Product) VariantsForUpdate() []*ProductVariant {
 	var result []*ProductVariant
 	for i := range p.variants {
 		result = append(result, &p.variants[i])

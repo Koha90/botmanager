@@ -42,11 +42,23 @@ func TestOrder_Confirm_Table(t *testing.T) {
 
 			events := o.PullEvents()
 			require.Len(t, events, 1)
-			require.Equal(t, NameOrderConfirm, events[0].Name())
+			require.Equal(t, NameOrderConfirmed, events[0].Name())
 
 			require.Equal(t, int64(200), o.Price())
 
 			require.Empty(t, o.PullEvents())
 		})
 	}
+}
+
+func TestOrder_Cancel(t *testing.T) {
+	o := NewOrder(1, 1, 1, 200)
+
+	require.NoError(t, o.Cancel())
+	require.Equal(t, StatusCancelled, o.Status())
+	require.Equal(t, 2, o.Version())
+
+	evs := o.PullEvents()
+	require.Len(t, evs, 1)
+	require.Equal(t, NameOrderCanceled, evs[0].Name())
 }

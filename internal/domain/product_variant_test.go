@@ -3,6 +3,7 @@ package domain
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,7 @@ func TestNewProductVariant(t *testing.T) {
 	}{
 		{"success", 1, "250g", 1, 100, nil},
 		{"invalid pack", 1, "", 1, 100, ErrInvalidPackSize},
-		{"invalid district", 1, "250g", 0, 100, ErrInvalidDisctrictID},
+		{"invalid district", 1, "250g", 0, 100, ErrInvalidDistrictID},
 		{"invalid price", 1, "250g", 1, 0, ErrInvalidProductPrice},
 	}
 
@@ -57,4 +58,28 @@ func TestProductVariant_ChangePackSize(t *testing.T) {
 	require.Equal(t, "500g", v.packSize)
 
 	require.ErrorIs(t, v.ChangePackSize(""), ErrInvalidPackSize)
+}
+
+func TestProductVariant_Archive(t *testing.T) {
+	v, _ := NewProductVariant("250g", 1, 100)
+
+	require.True(t, v.IsActive())
+
+	now := time.Now()
+	v.Archive(now)
+
+	require.False(t, v.IsActive())
+	require.Equal(t, &now, v.ArchivedAt())
+}
+
+func TestProductVariant_FromDB(t *testing.T) {
+	now := time.Now()
+
+	v := NewProductVariantFromDB(10, "250g", 2, 500, &now)
+
+	require.Equal(t, 10, v.ID())
+	require.Equal(t, "250g", v.PackSize())
+	require.Equal(t, 2, v.DistrictID())
+	require.Equal(t, int64(500), v.Price())
+	require.Equal(t, &now, v.ArchivedAt())
 }
