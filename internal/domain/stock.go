@@ -28,12 +28,13 @@ var (
 //   - You cannot decrease more than reserved.
 //   - All mutating operations increment version.
 type Stock struct {
+	BaseAggregate
+
 	id          int
 	warehouseID int
 	variantID   int
 	quantity    int
 	reserved    int
-	version     int
 }
 
 // NewStock created a new Stock aggregate.
@@ -53,13 +54,15 @@ func NewStock(warehouseID int, variantID int, quantity int) (*Stock, error) {
 		return nil, ErrInvalidQuantity
 	}
 
-	return &Stock{
+	s := &Stock{
 		warehouseID: warehouseID,
 		variantID:   variantID,
 		quantity:    quantity,
 		reserved:    0,
-		version:     1,
-	}, nil
+	}
+
+	s.setInitialVersion(1)
+	return s, nil
 }
 
 // NewStockFromDB rehydrate Stock from persistence layer.
@@ -70,16 +73,17 @@ func NewStockFromDB(
 	variantID int,
 	quantity int,
 	reserved int,
-	version int,
 ) *Stock {
-	return &Stock{
+	s := &Stock{
 		id:          id,
 		warehouseID: warehouseID,
 		variantID:   variantID,
 		quantity:    quantity,
 		reserved:    reserved,
-		version:     version,
 	}
+
+	s.setInitialVersion(1)
+	return s
 }
 
 // ---- GETTERS ----
@@ -134,7 +138,7 @@ func (s *Stock) Reserve(n int) error {
 	}
 
 	s.reserved += n
-	s.version++
+	s.incrementVersion()
 	return nil
 }
 
@@ -153,7 +157,7 @@ func (s *Stock) Release(n int) error {
 	}
 
 	s.reserved -= n
-	s.version++
+	s.incrementVersion()
 	return nil
 }
 
@@ -174,7 +178,7 @@ func (s *Stock) Decrease(n int) error {
 
 	s.reserved -= n
 	s.quantity -= n
-	s.version++
+	s.incrementVersion()
 	return nil
 }
 

@@ -56,6 +56,7 @@ func TestProductVariant_ChangePackSize(t *testing.T) {
 
 	require.NoError(t, v.ChangePackSize("500g"))
 	require.Equal(t, "500g", v.packSize)
+	require.Equal(t, 2, v.Version())
 
 	require.ErrorIs(t, v.ChangePackSize(""), ErrInvalidPackSize)
 }
@@ -70,6 +71,7 @@ func TestProductVariant_Archive(t *testing.T) {
 
 	require.False(t, v.IsActive())
 	require.Equal(t, &now, v.ArchivedAt())
+	require.Equal(t, 2, v.Version())
 }
 
 func TestProductVariant_FromDB(t *testing.T) {
@@ -82,4 +84,5 @@ func TestProductVariant_FromDB(t *testing.T) {
 	require.Equal(t, 2, v.DistrictID())
 	require.Equal(t, int64(500), v.Price())
 	require.Equal(t, &now, v.ArchivedAt())
+	require.Equal(t, 1, v.Version())
 }

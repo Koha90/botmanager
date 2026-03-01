@@ -19,12 +19,13 @@ var (
 
 // ProductVariant repesent a variant of product packaging.
 type ProductVariant struct {
+	BaseAggregate
+
 	id         int
 	packSize   string
 	districtID int
 	price      int64
 
-	version    int
 	archivedAt *time.Time
 }
 
@@ -52,12 +53,14 @@ func NewProductVariant(
 		return nil, ErrInvalidProductPrice
 	}
 
-	return &ProductVariant{
+	v := &ProductVariant{
 		packSize:   packSize,
 		districtID: districtID,
 		price:      price,
-		version:    1,
-	}, nil
+	}
+
+	v.setInitialVersion(1)
+	return v, nil
 }
 
 // NewProductVariantFromDB used only repository.
@@ -67,14 +70,17 @@ func NewProductVariantFromDB(
 	distrcitID int,
 	price int64,
 	archivedAt *time.Time,
-) ProductVariant {
-	return ProductVariant{
+) *ProductVariant {
+	v := &ProductVariant{
 		id:         id,
 		packSize:   packSize,
 		districtID: distrcitID,
 		price:      price,
 		archivedAt: archivedAt,
 	}
+
+	v.setInitialVersion(1)
+	return v
 }
 
 // ---- SETTERS ----
@@ -87,6 +93,7 @@ func (v *ProductVariant) ChangePrice(price int64) error {
 	}
 
 	v.price = price
+	v.incrementVersion()
 	return nil
 }
 
@@ -98,6 +105,7 @@ func (v *ProductVariant) ChangePackSize(packSize string) error {
 	}
 
 	v.packSize = packSize
+	v.incrementVersion()
 	return nil
 }
 
@@ -142,6 +150,7 @@ func (v *ProductVariant) Version() int {
 
 // Archive settup date of archived variant.
 func (v *ProductVariant) Archive(now time.Time) {
+	v.incrementVersion()
 	v.archivedAt = &now
 }
 

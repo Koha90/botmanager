@@ -29,6 +29,8 @@ var (
 //   - Quantity must be > 0.
 //   - Total is calculated from price snapshots.
 type Cart struct {
+	BaseAggregate
+
 	id      int
 	userID  int
 	items   []CartItem
@@ -49,11 +51,14 @@ func NewCart(userID int) (*Cart, error) {
 		return nil, ErrInvalidUserID
 	}
 
-	return &Cart{
-		userID:  userID,
-		status:  CartStatusActive,
-		version: 1,
-	}, nil
+	c := &Cart{
+		userID: userID,
+		status: CartStatusActive,
+	}
+
+	c.setInitialVersion(1)
+
+	return c, nil
 }
 
 // ---- GETTERS ----
@@ -107,7 +112,7 @@ func (c *Cart) AddItem(variantID int, quantity int, price int64) error {
 		price:     price,
 	})
 
-	c.version++
+	c.incrementVersion()
 	return nil
 }
 
@@ -120,7 +125,8 @@ func (c *Cart) RemoveItem(variantID int) error {
 	for i, item := range c.items {
 		if item.variantID == variantID {
 			c.items = append(c.items[:i], c.items[i+1:]...)
-			c.version++
+
+			c.incrementVersion()
 			return nil
 		}
 	}
@@ -141,7 +147,7 @@ func (c *Cart) ChangeQuantity(variantID int, quantity int) error {
 	for i := range c.items {
 		if c.items[i].variantID == variantID {
 			c.items[i].quantity = quantity
-			c.version++
+			c.incrementVersion()
 			return nil
 		}
 	}
@@ -171,6 +177,6 @@ func (c *Cart) Chackout() error {
 	}
 
 	c.status = CartStatusCheckedOut
-	c.version++
+	c.incrementVersion()
 	return nil
 }

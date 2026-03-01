@@ -16,16 +16,14 @@ var (
 
 // Product represents the product.
 type Product struct {
+	BaseAggregate
+
 	id          int
 	categoryID  *int
 	name        string
 	description string
 	imagePath   *string
 	variants    []ProductVariant
-
-	version int
-
-	events []DomainEvent
 }
 
 // NewProduct creates a new product.
@@ -46,13 +44,15 @@ func NewProduct(
 		return nil, ErrInvalidCategoryID
 	}
 
-	return &Product{
+	p := &Product{
 		name:        name,
 		categoryID:  &categoryID,
 		description: description,
 		imagePath:   &imagePath,
-		version:     1,
-	}, nil
+	}
+
+	p.setInitialVersion(1)
+	return p, nil
 }
 
 func NewProductFromDB(
@@ -64,16 +64,17 @@ func NewProductFromDB(
 	version int,
 	variants []ProductVariant,
 ) *Product {
-	return &Product{
+	p := &Product{
 		id:          id,
 		categoryID:  categoryID,
 		name:        name,
 		description: description,
 		imagePath:   imagePath,
 		variants:    variants,
-		version:     version,
-		events:      nil,
 	}
+
+	p.setInitialVersion(1)
+	return p
 }
 
 // ---- GETTERS ----
@@ -142,7 +143,7 @@ func (p *Product) Rename(name string) error {
 	}
 
 	p.name = name
-	p.version++
+	p.incrementVersion()
 	return nil
 }
 
@@ -195,7 +196,7 @@ func (p *Product) AddVariant(
 	}
 
 	p.variants = append(p.variants, *v)
-	p.version++
+	p.incrementVersion()
 	p.addEvent(NewProductVariantAdded(v.ID()))
 	return nil
 }
@@ -227,7 +228,7 @@ func (p *Product) ArchiveVariant(id int, now time.Time) error {
 	}
 
 	target.Archive(now)
-	p.version++
+	p.incrementVersion()
 	p.addEvent(NewVariantArchived(id))
 	return nil
 }
@@ -239,14 +240,4 @@ func (p *Product) VariantsForUpdate() []*ProductVariant {
 		result = append(result, &p.variants[i])
 	}
 	return result
-}
-
-func (p *Product) addEvent(ev DomainEvent) {
-	p.events = append(p.events, ev)
-}
-
-func (p *Product) PullEvents() []DomainEvent {
-	ev := p.events
-	p.events = nil
-	return ev
 }

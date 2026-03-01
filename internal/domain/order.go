@@ -31,6 +31,8 @@ var (
 //   - Paid order cannot be cancelled.
 //   - Cancelled order cannot be paid.
 type Order struct {
+	BaseAggregate
+
 	id        int
 	userID    int
 	items     []OrderItem
@@ -38,9 +40,6 @@ type Order struct {
 	status    OrderStatus
 	createdAt time.Time
 	paidAt    *time.Time
-	version   int
-
-	events []DomainEvent
 }
 
 // OrderItem represents snapshot of product at purchase time.
@@ -65,14 +64,17 @@ func NewOrder(userID int, items []OrderItem, createdAt time.Time) (*Order, error
 		total += int64(item.quantity) * item.price
 	}
 
-	return &Order{
+	o := &Order{
 		userID:    userID,
 		items:     items,
 		total:     total,
 		status:    OrderStatusPending,
 		createdAt: createdAt,
-		version:   1,
-	}, nil
+	}
+
+	o.setInitialVersion(1)
+
+	return o, nil
 }
 
 // ---- GETTERS ----
@@ -125,8 +127,8 @@ func (o *Order) MarkPaid(now time.Time) error {
 
 	o.status = OrderStatusPaid
 	o.paidAt = &now
-	o.version++
 
+	o.incrementVersion()
 	o.addEvent(NewOrderPaid(o.id))
 
 	return nil
@@ -151,26 +153,11 @@ func (o *Order) Cancel() error {
 	}
 
 	o.status = OrderStatusCancelled
-	o.version++
 
+	o.incrementVersion()
 	o.addEvent(NewOrderCancelled(o.id))
 
 	return nil
-}
-
-// PullEvents returns and clears accumulated domain events.
-func (o *Order) PullEvents() []DomainEvent {
-	result := make([]DomainEvent, len(o.events))
-	copy(result, o.events)
-
-	o.events = nil
-
-	return result
-}
-
-// addEvent appends domain evet to aggregate buffer.
-func (o *Order) addEvent(ev DomainEvent) {
-	o.events = append(o.events, ev)
 }
 
 // ---- SETTERS ----

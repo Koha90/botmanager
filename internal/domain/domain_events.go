@@ -17,7 +17,7 @@ type DomainEvent interface {
 
 const (
 	// Orders
-	NameOrderConfirmed string = "order_paid"
+	NameOrderPaid      string = "order_paid"
 	NameOrderCancelled string = "order_cancelled"
 
 	// Products
@@ -110,7 +110,7 @@ func NewOrderPaid(orderID int) OrderPaid {
 
 // Name returns event type identifier.
 func (e OrderPaid) Name() string {
-	return NameOrderConfirmed
+	return NameOrderPaid
 }
 
 // OccurredAt returns event timestamp.

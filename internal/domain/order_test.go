@@ -39,6 +39,41 @@ func TestOrder_MarkPaid(t *testing.T) {
 	require.ErrorIs(t, err, ErrOrderAlreadyPaid)
 }
 
+func TestOrder_MarkPaid_EmitsEvent(t *testing.T) {
+	items := []OrderItem{
+		{variantID: 1, quantity: 1, price: 100},
+	}
+
+	o, _ := NewOrder(1, items, time.Now())
+	o.SetID(10)
+
+	require.NoError(t, o.MarkPaid(time.Now()))
+
+	events := o.PullEvents()
+	require.Len(t, events, 1)
+
+	require.Equal(t, NameOrderPaid, events[0].Name())
+}
+
+func TestOrder_MarkPaid_ClearBuffer(t *testing.T) {
+	items := []OrderItem{
+		{variantID: 1, quantity: 1, price: 100},
+	}
+
+	o, _ := NewOrder(1, items, time.Now())
+	o.SetID(10)
+
+	require.NoError(t, o.MarkPaid(time.Now()))
+
+	events := o.PullEvents()
+	require.Len(t, events, 1)
+
+	require.Equal(t, NameOrderPaid, events[0].Name())
+
+	events = o.PullEvents()
+	require.Equal(t, events, []DomainEvent{})
+}
+
 func TestOrder_Cancel(t *testing.T) {
 	items := []OrderItem{
 		{variantID: 1, quantity: 1, price: 100},
