@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// Role defines a user role within the system.
 type Role string
 
 const (
@@ -17,7 +18,10 @@ var (
 	ErrInvalidCredentials error = errors.New("invalid credantials")
 )
 
-// User represent user of the application.
+// User represent an application user.
+//
+// A user may authenticate either via Telegram or email/password.
+// Admin user require explicit access expiration configuration.
 type User struct {
 	id                   int
 	tgID                 *int64
@@ -40,7 +44,16 @@ type NewUserParams struct {
 	Role         Role
 }
 
-// NewUser created a new user of the application.
+// NewUser created a new user instance.
+//
+// Business rules:
+//   - If role is empty, it defaults to RoleCustomer.
+//   - Role must be either RoleCustomer or RoleAdmin.
+//   - User must authenticate either via Telegram (TgID)
+//     or via email + password hash.
+//
+// Admin users are enabled by default.
+// Customer users are disabled by default.
 func NewUser(p NewUserParams) (*User, error) {
 	now := time.Now()
 
@@ -74,7 +87,14 @@ func NewUser(p NewUserParams) (*User, error) {
 	return user, nil
 }
 
-// CanUseAdminPanel returns wheter the user can use the admin panel.
+// CanUseAdminPanel determines whether the user
+// has currently valid admin panel access.
+//
+// Conditions:
+//   - Role must be RoleAdmin
+//   - User must be enabled
+//   - Access expiration must be set
+//   - Current time must be before expiration
 func (u *User) CanUseAdminPanel(now time.Time) bool {
 	if u.role != RoleAdmin || !u.isEnabled {
 		return false
@@ -89,19 +109,24 @@ func (u *User) CanUseAdminPanel(now time.Time) bool {
 
 // ---- SETTERS ----
 
-// Enable sets enabled and updates user.
+// Enable activates the user account
+// and updates the modification timestamp.
 func (u *User) Enable() {
 	u.isEnabled = true
 	u.updatedAt = time.Now()
 }
 
-// Disable sets disable user and updates user.
+// Disable deactivates the user account
+// and updates the modification timestamp.
 func (u *User) Disable() {
 	u.isEnabled = false
 	u.updatedAt = time.Now()
 }
 
-// GrantAdminAccess ...
+// GrantAdminAccess grants temporary admin access
+// until the specified time.
+//
+// Has effect only if user role is RoleAdmin.
 func (u *User) GrantAdminAccess(until time.Time) {
 	if u.role != RoleAdmin {
 		return

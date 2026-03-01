@@ -67,11 +67,15 @@ func TestProductVariant_Archive(t *testing.T) {
 	require.True(t, v.IsActive())
 
 	now := time.Now()
-	v.Archive(now)
+	err := v.Archive(now)
 
+	require.NoError(t, err)
 	require.False(t, v.IsActive())
 	require.Equal(t, &now, v.ArchivedAt())
 	require.Equal(t, 2, v.Version())
+
+	err = v.Archive(time.Now())
+	require.ErrorIs(t, err, ErrVariantAlreadyArchived)
 }
 
 func TestProductVariant_FromDB(t *testing.T) {

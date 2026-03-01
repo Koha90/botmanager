@@ -15,9 +15,14 @@ var (
 	ErrInvalidVariantID         error = errors.New("invalid variant id")
 	ErrCannotArchiveLastVariant error = errors.New("cannot archive last variant")
 	ErrVariantAlreadyExists     error = errors.New("variant already exists")
+	ErrVariantAlreadyArchived   error = errors.New("variant already archived")
 )
 
-// ProductVariant repesent a variant of product packaging.
+// ProductVariant repesent a specific purchasable packaging option
+// of a product within a specific district.
+//
+// It is an aggregate root and maintains its own version for
+// optimistic concurrency control.
 type ProductVariant struct {
 	BaseAggregate
 
@@ -26,21 +31,25 @@ type ProductVariant struct {
 	districtID int
 	price      int64
 
+	// archivedAt is set when the variant is no longer active.
+	// A nil value means the variant is active.
 	archivedAt *time.Time
 }
 
-// NewProductVariant creates a new product
-// packaging option with price and city district.
-// Returns error if price invalid.
+// NewProductVariant creates a new product variant.
+//
+// It validades all business invariants:
+//
+//   - packSize must not be empty
+//   - districtID must be positive
+//   - price must be positive
+//
+// Returns an error if any invariant is violated.
 func NewProductVariant(
 	packSize string,
 	districtID int,
 	price int64,
 ) (*ProductVariant, error) {
-	// if productID <= 0 {
-	// 	return nil, ErrInvalidProductID
-	// }
-
 	if strings.TrimSpace(packSize) == "" {
 		return nil, ErrInvalidPackSize
 	}
@@ -63,18 +72,21 @@ func NewProductVariant(
 	return v, nil
 }
 
-// NewProductVariantFromDB used only repository.
+// NewProductVariantFromDB reconstruct a ProductVariant
+// from persistent storage.
+//
+// This function must only be used by repository implementations.
 func NewProductVariantFromDB(
 	id int,
 	packSize string,
-	distrcitID int,
+	distritID int,
 	price int64,
 	archivedAt *time.Time,
 ) *ProductVariant {
 	v := &ProductVariant{
 		id:         id,
 		packSize:   packSize,
-		districtID: distrcitID,
+		districtID: distritID,
 		price:      price,
 		archivedAt: archivedAt,
 	}
@@ -85,8 +97,10 @@ func NewProductVariantFromDB(
 
 // ---- SETTERS ----
 
-// ChangePrice changes the price of the product.
-// Returns error if price invalid.
+// ChangePrice changes the price of the variant.
+//
+// Increment aggregate version.
+// Returns ErrInvalidProductPrice if price is non-positive.
 func (v *ProductVariant) ChangePrice(price int64) error {
 	if price <= 0 {
 		return ErrInvalidProductPrice
@@ -97,8 +111,10 @@ func (v *ProductVariant) ChangePrice(price int64) error {
 	return nil
 }
 
-// ChangePackSize changes the packaging of the product.
-// Returns error if pack size invalid.
+// ChangePackSize updates the packaging size.
+//
+// Increment aggregate version.
+// Returns ErrInvalidPackSize if packSize is empty.
 func (v *ProductVariant) ChangePackSize(packSize string) error {
 	if strings.TrimSpace(packSize) == "" {
 		return ErrInvalidPackSize
@@ -148,13 +164,21 @@ func (v *ProductVariant) Version() int {
 
 // ---- CHANGERS ----
 
-// Archive settup date of archived variant.
-func (v *ProductVariant) Archive(now time.Time) {
+// Archive marks the variant as archived.
+//
+// After archiving, the variant is considered invactive.
+// Increment aggregate version.
+// Returns ErrVariantAlreadyArchived if archivedAt is not nil.
+func (v *ProductVariant) Archive(now time.Time) error {
+	if v.archivedAt != nil {
+		return ErrVariantAlreadyArchived
+	}
 	v.incrementVersion()
 	v.archivedAt = &now
+	return nil
 }
 
-// IsActive checks if the variant is in the archive.
+// IsActive returns true if the variant is the not archive.
 func (v ProductVariant) IsActive() bool {
 	return v.archivedAt == nil
 }
