@@ -1,4 +1,4 @@
-package services
+package service
 
 // Logger defines minimal logging capabilities
 // required by application services.

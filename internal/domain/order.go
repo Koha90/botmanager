@@ -20,6 +20,7 @@ var (
 	ErrOrderAlreadyPaid      error = errors.New("order already paid")
 	ErrOrderAlreadyCancelled error = errors.New("order already cancelled")
 	ErrOrderNotPending       error = errors.New("order is not pending")
+	ErrOrderNotFound         error = errors.New("order not found")
 )
 
 // Order represents confirmed purchase intent.

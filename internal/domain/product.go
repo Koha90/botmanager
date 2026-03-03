@@ -104,7 +104,7 @@ func (p *Product) ImagePath() *string {
 	return p.imagePath
 }
 
-// Variant returns version of product.
+// Version returns version of product.
 func (p *Product) Version() int {
 	return p.version
 }
@@ -170,7 +170,7 @@ func (p *Product) SetID(id int) {
 	p.id = id
 }
 
-// SetVariantID
+// SetVariantID sets variant id.
 func (p *Product) SetVariantID(index int, id int) {
 	if index >= 0 && index < len(p.variants) {
 		p.variants[index].SetID(id)
@@ -205,7 +205,7 @@ func (p *Product) HasVariants() bool {
 	return len(p.variants) > 0
 }
 
-// ArchiveVariant set product variant to archive.
+// ArchiveVariant sets product variant to archive.
 func (p *Product) ArchiveVariant(id int, now time.Time) error {
 	activeCount := 0
 	var target *ProductVariant
