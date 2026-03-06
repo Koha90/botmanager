@@ -37,6 +37,10 @@ func NewOrderService(
 	tx TxManager,
 	logger *slog.Logger,
 ) *OrderService {
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	return &OrderService{
 		repo:     repo,
 		userRepo: userRepo,

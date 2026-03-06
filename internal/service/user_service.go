@@ -39,6 +39,10 @@ func NewUserService(
 	bus EventBus,
 	logger *slog.Logger,
 ) *UserService {
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	return &UserService{
 		repo:   repo,
 		tx:     tx,

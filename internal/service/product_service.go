@@ -23,6 +23,9 @@ func NewProductService(
 	bus EventBus,
 	logger *slog.Logger,
 ) *ProductService {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return &ProductService{
 		repo:   r,
 		tx:     tx,

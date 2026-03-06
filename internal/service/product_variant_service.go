@@ -36,6 +36,9 @@ func NewProductVariantService(
 	events EventPublisher,
 	logger *slog.Logger,
 ) *ProductVariantService {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return &ProductVariantService{
 		repo:   repo,
 		logger: logger,
