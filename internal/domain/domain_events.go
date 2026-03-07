@@ -10,7 +10,7 @@ import "time"
 //
 // The domain layer must not publish events directly.
 // It only records them.
-type DomainEvent interface {
+type Event interface {
 	Name() string
 	OccurredAt() time.Time
 }

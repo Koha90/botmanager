@@ -17,7 +17,7 @@ var (
 	ErrInvalidRole         error = errors.New("invalid user role")
 	ErrInvalidCredentials  error = errors.New("invalid credentials")
 	ErrInsufficientBalance error = errors.New("insufficient balance")
-	ErrInvalidAmount       error = errors.New("amount must positive")
+	ErrInvalidAmount       error = errors.New("amount must be positive")
 )
 
 // User represents an application user.
@@ -26,6 +26,7 @@ var (
 // Admin user require explicit access expiration configuration.
 type User struct {
 	BaseAggregate
+
 	id           int
 	tgID         *int64
 	tgName       *string
@@ -73,15 +74,21 @@ func NewUser(p NewUserParams) (*User, error) {
 		return nil, ErrInvalidCredentials
 	}
 
+	var tgName *string
+	if p.TgID != nil {
+		tgName = &p.TgName
+	}
+
 	user := &User{
-		tgID:      p.TgID,
-		tgName:    &p.TgName,
-		email:     p.Email,
-		role:      p.Role,
-		isEnabled: false,
-		balance:   0,
-		createdAt: now,
-		updatedAt: now,
+		tgID:         p.TgID,
+		tgName:       tgName,
+		email:        p.Email,
+		role:         p.Role,
+		passwordHash: p.PasswordHash,
+		isEnabled:    false,
+		balance:      0,
+		createdAt:    now,
+		updatedAt:    now,
 	}
 
 	user.setInitialVersion(1)

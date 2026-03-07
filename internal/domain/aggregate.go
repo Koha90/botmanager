@@ -8,7 +8,7 @@ package domain
 //   - expose events for application layer publishing
 type AggregateRoot interface {
 	Version() int
-	PullEvevnts() []DomainEvent
+	PullEvevnts() []Event
 }
 
 // BaseAggregate provides common functionality
@@ -21,7 +21,7 @@ type AggregateRoot interface {
 // Concrete aggregates should embed this struct.
 type BaseAggregate struct {
 	version int
-	events  []DomainEvent
+	events  []Event
 }
 
 // Version returns aggregate version.
@@ -36,13 +36,13 @@ func (a *BaseAggregate) incrementVersion() {
 }
 
 // addEvent stores domain event inside aggregate.
-func (a *BaseAggregate) addEvent(event DomainEvent) {
+func (a *BaseAggregate) addEvent(event Event) {
 	a.events = append(a.events, event)
 }
 
-// PullEvevnts returns accumulated events and clears buffer.
-func (a *BaseAggregate) PullEvents() []DomainEvent {
-	result := make([]DomainEvent, len(a.events))
+// PullEvents returns accumulated events and clears buffer.
+func (a *BaseAggregate) PullEvents() []Event {
+	result := make([]Event, len(a.events))
 	copy(result, a.events)
 
 	a.events = nil

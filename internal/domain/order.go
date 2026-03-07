@@ -46,14 +46,6 @@ type Order struct {
 	cancelledAt *time.Time
 }
 
-// OrderItem represents snapshot of product at purchase time.
-type OrderItem struct {
-	productID int
-	variantID int
-	quantity  int
-	price     int64
-}
-
 // NewOrder creates new pending order.
 func NewOrder(userID int, items []OrderItem, createdAt time.Time) (*Order, error) {
 	if userID <= 0 {
@@ -66,7 +58,7 @@ func NewOrder(userID int, items []OrderItem, createdAt time.Time) (*Order, error
 
 	var total int64
 	for _, item := range items {
-		total += int64(item.quantity) * item.price
+		total += int64(item.quantity) * item.unitPrice
 	}
 
 	o := &Order{
@@ -80,14 +72,6 @@ func NewOrder(userID int, items []OrderItem, createdAt time.Time) (*Order, error
 	o.setInitialVersion(1)
 
 	return o, nil
-}
-
-func NewOrderItem(variantID int, quantity int, price int64) OrderItem {
-	return OrderItem{
-		variantID: variantID,
-		quantity:  quantity,
-		price:     price,
-	}
 }
 
 // ---- GETTERS ----

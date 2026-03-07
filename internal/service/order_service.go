@@ -14,7 +14,7 @@ import (
 	"botmanager/internal/domain"
 )
 
-// OrderService orchestrates order use cases.
+// OrderService orchestrates order-related use cases.
 type OrderService struct {
 	products ProductReader
 	orders   OrderRepository
@@ -27,7 +27,6 @@ type OrderService struct {
 
 // NewOrderService creates a new OrderService instance.
 //
-// All dependencies must be provided.
 // logger may be nil, in that case slog.Default() is used.
 func NewOrderService(
 	products ProductReader,
@@ -39,6 +38,14 @@ func NewOrderService(
 ) *OrderService {
 	if products == nil {
 		panic("service: ProductReader is nil")
+	}
+
+	if orders == nil {
+		panic("service: OrderRepository is nil")
+	}
+
+	if users == nil {
+		panic("service: UserRepository is nil")
 	}
 
 	if tx == nil {
@@ -64,7 +71,7 @@ func NewOrderService(
 }
 
 // Create creates a new order for a selected product variant.
-func (s *OrderService) Create(
+func (s *OrderService) CreateForVariant(
 	ctx context.Context,
 	userID int,
 	productID int,
@@ -82,16 +89,28 @@ func (s *OrderService) Create(
 
 		product, err := s.products.ByID(ctx, productID)
 		if err != nil {
+			s.logger.Error(
+				"failed to load product",
+				"product_id", productID,
+				"variant_id", variantID,
+				"err", err,
+			)
 			return fmt.Errorf("load product: %w", err)
 		}
 
 		variant, err := product.VariantByID(variantID)
 		if err != nil {
+			s.logger.Warn(
+				"failed to load product variant",
+				"product_id", productID,
+				"variant_id", variantID,
+				"err", err,
+			)
 			return fmt.Errorf("load product variant: %w", err)
 		}
 
 		items := []domain.OrderItem{
-			domain.NewOrderItem(variant.ID(), 1, variant.Price()),
+			domain.NewOrderItem(product.ID(), variant.ID(), 1, variant.Price()),
 		}
 
 		order, err := domain.NewOrder(userID, items, time.Now())

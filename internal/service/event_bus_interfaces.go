@@ -12,10 +12,10 @@ import (
 // and register handlers reacting to them
 type EventBus interface {
 	// Publish dispatches domain events to subscribe handlers.
-	Publish(ctx context.Context, events ...domain.DomainEvent) error
+	Publish(ctx context.Context, events ...domain.Event) error
 
 	// Subscribe register a handler for specific event name.
-	Subscribe(eventName string, handler EventHandler)
+	// Subscribe(eventName string, handler EventHandler)
 }
 
-type EventHandler func(ctx context.Context, event domain.DomainEvent) error
+type EventHandler func(ctx context.Context, event domain.Event) error

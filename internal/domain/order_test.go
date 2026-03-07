@@ -15,7 +15,7 @@ func TestNewOrder(t *testing.T) {
 	require.ErrorIs(t, err, ErrOrderEmpty)
 
 	items := []OrderItem{
-		{variantID: 1, quantity: 2, price: 100},
+		{variantID: 1, quantity: 2, unitPrice: 100},
 	}
 
 	o, err := NewOrder(1, items, time.Now())
@@ -26,7 +26,7 @@ func TestNewOrder(t *testing.T) {
 
 func TestOrder_MarkPaid(t *testing.T) {
 	items := []OrderItem{
-		{variantID: 1, quantity: 1, price: 100},
+		{variantID: 1, quantity: 1, unitPrice: 100},
 	}
 
 	o, _ := NewOrder(1, items, time.Now())
@@ -41,7 +41,7 @@ func TestOrder_MarkPaid(t *testing.T) {
 
 func TestOrder_MarkPaid_EmitsEvent(t *testing.T) {
 	items := []OrderItem{
-		{variantID: 1, quantity: 1, price: 100},
+		{variantID: 1, quantity: 1, unitPrice: 100},
 	}
 
 	o, _ := NewOrder(1, items, time.Now())
@@ -57,7 +57,7 @@ func TestOrder_MarkPaid_EmitsEvent(t *testing.T) {
 
 func TestOrder_MarkPaid_ClearBuffer(t *testing.T) {
 	items := []OrderItem{
-		{variantID: 1, quantity: 1, price: 100},
+		{variantID: 1, quantity: 1, unitPrice: 100},
 	}
 
 	o, _ := NewOrder(1, items, time.Now())
@@ -71,17 +71,17 @@ func TestOrder_MarkPaid_ClearBuffer(t *testing.T) {
 	require.Equal(t, NameOrderPaid, events[0].Name())
 
 	events = o.PullEvents()
-	require.Equal(t, events, []DomainEvent{})
+	require.Equal(t, events, []Event{})
 }
 
 func TestOrder_Cancel(t *testing.T) {
 	items := []OrderItem{
-		{variantID: 1, quantity: 1, price: 100},
+		{variantID: 1, quantity: 1, unitPrice: 100},
 	}
 
 	o, _ := NewOrder(1, items, time.Now())
 
-	require.NoError(t, o.Cancel())
+	require.NoError(t, o.Cancel(time.Now()))
 	require.Equal(t, OrderStatusCancelled, o.Status())
 
 	err := o.MarkPaid(time.Now())
@@ -90,12 +90,12 @@ func TestOrder_Cancel(t *testing.T) {
 
 func TestOrder_CannotCancelPaid(t *testing.T) {
 	items := []OrderItem{
-		{variantID: 1, quantity: 1, price: 100},
+		{variantID: 1, quantity: 1, unitPrice: 100},
 	}
 
 	o, _ := NewOrder(1, items, time.Now())
 	_ = o.MarkPaid(time.Now())
 
-	err := o.Cancel()
+	err := o.Cancel(time.Now())
 	require.ErrorIs(t, err, ErrOrderAlreadyPaid)
 }

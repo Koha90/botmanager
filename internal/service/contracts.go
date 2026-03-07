@@ -7,11 +7,13 @@ import (
 	"botmanager/internal/domain"
 )
 
+// ProductRepository defines persistence operations required by ProductService.
 type ProductRepository interface {
 	Save(ctx context.Context, p *domain.Product) error
 	ByID(ctx context.Context, id int) (*domain.Product, error)
 }
 
+// ProductReader defines read operations required by order use cases.
 type ProductReader interface {
 	ByID(ctx context.Context, id int) (*domain.Product, error)
 }
