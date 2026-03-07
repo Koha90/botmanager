@@ -6,6 +6,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -14,25 +16,30 @@ import (
 
 // OrderRepository defines persistence contain for Order aggregate.
 type OrderRepository interface {
-	Save(ctx context.Context, order *domain.Order) error
+	Create(ctx context.Context, order *domain.Order) error
 	ByID(ctx context.Context, id int) (*domain.Order, error)
+	Update(ctx context.Context, order *domain.Order) error
 }
 
 // OrderService orchestrates order use cases.
 type OrderService struct {
-	repo     OrderRepository
-	userRepo UserRepository
-	bus      EventBus
-	tx       TxManager
-	logger   *slog.Logger
+	products productReader
+	orders   OrderRepository
+	users    UserRepository
+
+	bus    EventBus
+	tx     TxManager
+	logger *slog.Logger
 }
 
-// NewOrderService creates OrderService instance.
+// NewOrderService creates a new OrderService instance.
 //
-// logger must not be nil.
+// All dependencies must be provided.
+// logger may be nil, in that case slog.Default() is used.
 func NewOrderService(
-	repo OrderRepository,
-	userRepo UserRepository,
+	products productReader,
+	orders OrderRepository,
+	users UserRepository,
 	bus EventBus,
 	tx TxManager,
 	logger *slog.Logger,
@@ -42,97 +49,182 @@ func NewOrderService(
 	}
 
 	return &OrderService{
-		repo:     repo,
-		userRepo: userRepo,
+		products: products,
+		orders:   orders,
+		users:    users,
 		bus:      bus,
 		tx:       tx,
 		logger:   logger,
 	}
 }
 
-// ConfirmPayment marks order as paid and publishes domain events.
+// Create creates a new order for a selected product variant.
+func (s *OrderService) Create(
+	ctx context.Context,
+	userID int,
+	productID int,
+	variantID int,
+) (*domain.Order, error) {
+	var created *domain.Order
+
+	err := s.tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		s.logger.Info(
+			"creating order",
+			"user_id", userID,
+			"product_id", productID,
+			"variant_id", variantID,
+		)
+
+		product, err := s.products.ByID(ctx, productID)
+		if err != nil {
+			return fmt.Errorf("load product: %w", err)
+		}
+
+		variant, err := product.VariantByID(variantID)
+		if err != nil {
+			return fmt.Errorf("load product variant: %w", err)
+		}
+
+		items := []domain.OrderItem{
+			domain.NewOrderItem(variant.ID(), 1, variant.Price()),
+		}
+
+		order, err := domain.NewOrder(userID, items, time.Now())
+		if err != nil {
+			return err
+		}
+
+		if err := s.orders.Create(ctx, order); err != nil {
+			s.logger.Error(
+				"failed to create order",
+				"user_id", userID,
+				"product_id", productID,
+				"variant_id", variantID,
+				"err", err,
+			)
+			return err
+		}
+
+		created = order
+
+		s.logger.Info(
+			"order created successfully",
+			"order_id", order.ID(),
+			"user_id", userID,
+		)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return created, nil
+}
+
+// ConfirmPayment marks order as paid after external payment confirmation.
+//
+// Use this method when payment was completed outside of internal balance
+// workflow, for example via card, crypto, SBP or another payment gateway.
 func (s *OrderService) ConfirmPayment(
 	ctx context.Context,
 	orderID int,
 ) error {
 	return s.tx.WithinTransaction(ctx, func(ctx context.Context) error {
-		order, err := s.repo.ByID(ctx, orderID)
+		s.logger.Info("confirming external payment", "order_id", orderID)
+
+		order, err := s.orders.ByID(ctx, orderID)
 		if err != nil {
+			if errors.Is(err, domain.ErrOrderNotFound) {
+				return domain.ErrOrderNotFound
+			}
+
 			s.logger.Error(
-				"failed to find order",
-				"orderID", orderID,
+				"failed to load order",
+				"order_id", orderID,
 				"err", err,
 			)
-			return err
+			return fmt.Errorf("load order: %w", err)
 		}
 
 		if err := order.MarkPaid(time.Now()); err != nil {
-			s.logger.Error(
-				"failes to mark order as paid",
-				"orderID", orderID,
+			s.logger.Warn(
+				"failed to mark order as paid",
+				"order_id", orderID,
 				"err", err,
 			)
 			return err
 		}
 
-		if err := s.repo.Save(ctx, order); err != nil {
+		if err := s.orders.Update(ctx, order); err != nil {
 			s.logger.Error(
-				"failed to save order",
+				"filed to update order",
+				"order_id", orderID,
 				"err", err,
 			)
-			return err
+			return domain.ErrOrderUpdate
 		}
 
 		events := order.PullEvents()
-
-		if err := s.bus.Publish(ctx, events...); err != nil {
-			s.logger.Error(
-				"failed to publishe order events",
-				"orderID", orderID,
-				"err", err,
-			)
-			return err
+		if len(events) > 0 {
+			if err := s.bus.Publish(ctx, events...); err != nil {
+				s.logger.Error(
+					"failed to publish order events",
+					"order_id", orderID,
+					"err", err,
+				)
+				return fmt.Errorf("publish events: %w", err)
+			}
 		}
 
-		s.logger.Info(
-			"order successfully paid",
-			"orderID", orderID,
+		s.logger.Info("external payment confirmed successfully",
+			"order_id", orderID,
 		)
+
 		return nil
 	})
 }
 
-// ConfirmOrder confirms order and deduct user balance.
-// Operation is executed atomically.
-func (s *OrderService) ConfirmOrder(
+// PayFromBalance deducts user balance and marks order as paid.
+//
+// Use this method when payment is performed with internal user balance.
+func (s *OrderService) PayFromBalance(
 	ctx context.Context,
 	orderID int,
 ) error {
 	return s.tx.WithinTransaction(ctx, func(ctx context.Context) error {
-		order, err := s.repo.ByID(ctx, orderID)
+		s.logger.Info("paying order from balance", "order_id", orderID)
+
+		order, err := s.orders.ByID(ctx, orderID)
 		if err != nil {
+			if errors.Is(err, domain.ErrOrderNotFound) {
+				return domain.ErrOrderNotFound
+			}
+
 			s.logger.Error(
-				"faled to load order",
-				"orderID", orderID,
+				"failed to load order",
+				"order_id", orderID,
 				"err", err,
 			)
-			return err
+			return fmt.Errorf("load order: %w", err)
 		}
 
-		user, err := s.userRepo.ByID(ctx, order.UserID())
+		user, err := s.users.ByID(ctx, order.UserID())
 		if err != nil {
 			s.logger.Error(
 				"failed to load user",
-				"userID", order.UserID(),
+				"user_id", order.UserID(),
+				"order_id", orderID,
 				"err", err,
 			)
-			return err
+			return fmt.Errorf("load user: %w", err)
 		}
 
 		if err := user.DeductBalance(order.Total()); err != nil {
 			s.logger.Warn(
-				"insufficient user balance",
-				"userID", user.ID,
+				"failed to deduct user balance",
+				"user_id", order.UserID(),
+				"order_id", orderID,
 				"amount", order.Total(),
 				"err", err,
 			)
@@ -141,25 +233,89 @@ func (s *OrderService) ConfirmOrder(
 		if err := order.MarkPaid(time.Now()); err != nil {
 			s.logger.Warn(
 				"failed to mark order as paid",
-				"orderID", orderID,
+				"order_id", orderID,
 				"err", err,
 			)
 			return err
 		}
 
-		if err := s.userRepo.Save(ctx, user); err != nil {
-			return err
+		if err := s.users.Save(ctx, user); err != nil {
+			s.logger.Error(
+				"failed to save user",
+				"user_id", user.ID(),
+				"err", err,
+			)
+			return fmt.Errorf("save user: %w", err)
 		}
 
-		if err := s.repo.Save(ctx, order); err != nil {
-			return err
+		if err := s.orders.Update(ctx, order); err != nil {
+			s.logger.Error(
+				"failed to update order",
+				"order_id", orderID,
+				"err", err,
+			)
+			return domain.ErrOrderUpdate
+		}
+
+		events := order.PullEvents()
+		if len(events) > 0 {
+			if err := s.bus.Publish(ctx, events...); err != nil {
+				s.logger.Error(
+					"failed to publish order events",
+					"order_id", orderID,
+					"err", err,
+				)
+				return fmt.Errorf("publish events: %w", err)
+			}
 		}
 
 		s.logger.Info(
-			"order confirmed successfully",
-			"orderID", orderID,
-			"userID", user.ID(),
+			"order paid from balance successfully",
+			"order_id", orderID,
+			"user_id", user.ID(),
 			"amount", order.Total(),
+		)
+
+		return nil
+	})
+}
+
+// Cancel cancels an existing order and publishes domain events.
+func (s *OrderService) Cancel(ctx context.Context, orderID int) error {
+	return s.tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		s.logger.Info("cancelling order", "order_id", orderID)
+
+		order, err := s.orders.ByID(ctx, orderID)
+		if err != nil {
+			if errors.Is(err, domain.ErrOrderNotFound) {
+				return domain.ErrOrderNotFound
+			}
+		}
+
+		if err := s.orders.Update(ctx, order); err != nil {
+			s.logger.Error(
+				"failed to update order",
+				"order_id", orderID,
+				"err", err,
+			)
+			return domain.ErrOrderUpdate
+		}
+
+		events := order.PullEvents()
+		if len(events) > 0 {
+			if err := s.bus.Publish(ctx, events...); err != nil {
+				s.logger.Error(
+					"failed to publishes order events",
+					"order_id", orderID,
+					"err", err,
+				)
+				return fmt.Errorf("publish events: %w", err)
+			}
+		}
+
+		s.logger.Info(
+			"order cancelled successfully",
+			"order_id", orderID,
 		)
 
 		return nil

@@ -21,6 +21,7 @@ var (
 	ErrOrderAlreadyCancelled error = errors.New("order already cancelled")
 	ErrOrderNotPending       error = errors.New("order is not pending")
 	ErrOrderNotFound         error = errors.New("order not found")
+	ErrOrderUpdate           error = errors.New("failed to update order")
 )
 
 // Order represents confirmed purchase intent.
@@ -76,6 +77,14 @@ func NewOrder(userID int, items []OrderItem, createdAt time.Time) (*Order, error
 	o.setInitialVersion(1)
 
 	return o, nil
+}
+
+func NewOrderItem(variantID int, quantity int, price int64) OrderItem {
+	return OrderItem{
+		variantID: variantID,
+		quantity:  quantity,
+		price:     price,
+	}
 }
 
 // ---- GETTERS ----

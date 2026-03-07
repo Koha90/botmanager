@@ -98,7 +98,7 @@ func (u *User) ID() int {
 	return u.id
 }
 
-// TgID returns user telegram id.
+// TelegramID returns user telegram id.
 func (u *User) TelegramID() (int64, bool) {
 	if u.tgID == nil {
 		return 0, false
@@ -106,7 +106,7 @@ func (u *User) TelegramID() (int64, bool) {
 	return *u.tgID, true
 }
 
-// TgName returns user telegram name.
+// TelegramName returns user telegram name.
 func (u *User) TelegramName() (string, bool) {
 	if u.tgName == nil {
 		return "", false

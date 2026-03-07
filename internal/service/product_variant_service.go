@@ -24,7 +24,7 @@ type ProductVariantRepository interface {
 //   - loading
 type ProductVariantService struct {
 	repo   ProductVariantRepository
-	events EventPublisher
+	events EventBus
 
 	logger *slog.Logger
 }
@@ -33,7 +33,7 @@ type ProductVariantService struct {
 // of ProductVariantRepository.
 func NewProductVariantService(
 	repo ProductVariantRepository,
-	events EventPublisher,
+	events EventBus,
 	logger *slog.Logger,
 ) *ProductVariantService {
 	if logger == nil {
