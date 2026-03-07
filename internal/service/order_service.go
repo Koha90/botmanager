@@ -14,16 +14,9 @@ import (
 	"botmanager/internal/domain"
 )
 
-// OrderRepository defines persistence contain for Order aggregate.
-type OrderRepository interface {
-	Create(ctx context.Context, order *domain.Order) error
-	ByID(ctx context.Context, id int) (*domain.Order, error)
-	Update(ctx context.Context, order *domain.Order) error
-}
-
 // OrderService orchestrates order use cases.
 type OrderService struct {
-	products productReader
+	products ProductReader
 	orders   OrderRepository
 	users    UserRepository
 
@@ -37,13 +30,25 @@ type OrderService struct {
 // All dependencies must be provided.
 // logger may be nil, in that case slog.Default() is used.
 func NewOrderService(
-	products productReader,
+	products ProductReader,
 	orders OrderRepository,
 	users UserRepository,
 	bus EventBus,
 	tx TxManager,
 	logger *slog.Logger,
 ) *OrderService {
+	if products == nil {
+		panic("service: ProductReader is nil")
+	}
+
+	if tx == nil {
+		panic("service: TxManager is nil")
+	}
+
+	if bus == nil {
+		panic("service: EventBus is nil")
+	}
+
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -94,7 +99,7 @@ func (s *OrderService) Create(
 			return err
 		}
 
-		if err := s.orders.Create(ctx, order); err != nil {
+		if err := s.orders.Save(ctx, order); err != nil {
 			s.logger.Error(
 				"failed to create order",
 				"user_id", userID,
@@ -156,7 +161,7 @@ func (s *OrderService) ConfirmPayment(
 			return err
 		}
 
-		if err := s.orders.Update(ctx, order); err != nil {
+		if err := s.orders.Save(ctx, order); err != nil {
 			s.logger.Error(
 				"filed to update order",
 				"order_id", orderID,
@@ -228,6 +233,7 @@ func (s *OrderService) PayFromBalance(
 				"amount", order.Total(),
 				"err", err,
 			)
+			return err
 		}
 
 		if err := order.MarkPaid(time.Now()); err != nil {
@@ -248,7 +254,7 @@ func (s *OrderService) PayFromBalance(
 			return fmt.Errorf("save user: %w", err)
 		}
 
-		if err := s.orders.Update(ctx, order); err != nil {
+		if err := s.orders.Save(ctx, order); err != nil {
 			s.logger.Error(
 				"failed to update order",
 				"order_id", orderID,
@@ -290,9 +296,25 @@ func (s *OrderService) Cancel(ctx context.Context, orderID int) error {
 			if errors.Is(err, domain.ErrOrderNotFound) {
 				return domain.ErrOrderNotFound
 			}
+
+			s.logger.Error(
+				"failed to load order",
+				"order_id", orderID,
+				"err", err,
+			)
+			return fmt.Errorf("load order: %w", err)
 		}
 
-		if err := s.orders.Update(ctx, order); err != nil {
+		if err := order.Cancel(time.Now()); err != nil {
+			s.logger.Warn(
+				"failed to cancel order",
+				"order_id", orderID,
+				"err", err,
+			)
+			return domain.ErrOrderCancel
+		}
+
+		if err := s.orders.Save(ctx, order); err != nil {
 			s.logger.Error(
 				"failed to update order",
 				"order_id", orderID,
@@ -305,7 +327,7 @@ func (s *OrderService) Cancel(ctx context.Context, orderID int) error {
 		if len(events) > 0 {
 			if err := s.bus.Publish(ctx, events...); err != nil {
 				s.logger.Error(
-					"failed to publishes order events",
+					"failed to publish order events",
 					"order_id", orderID,
 					"err", err,
 				)

@@ -22,6 +22,7 @@ var (
 	ErrOrderNotPending       error = errors.New("order is not pending")
 	ErrOrderNotFound         error = errors.New("order not found")
 	ErrOrderUpdate           error = errors.New("failed to update order")
+	ErrOrderCancel           error = errors.New("failed to cancel order")
 )
 
 // Order represents confirmed purchase intent.
@@ -35,17 +36,19 @@ var (
 type Order struct {
 	BaseAggregate
 
-	id        int
-	userID    int
-	items     []OrderItem
-	total     int64
-	status    OrderStatus
-	createdAt time.Time
-	paidAt    *time.Time
+	id          int
+	userID      int
+	items       []OrderItem
+	total       int64
+	status      OrderStatus
+	createdAt   time.Time
+	paidAt      *time.Time
+	cancelledAt *time.Time
 }
 
 // OrderItem represents snapshot of product at purchase time.
 type OrderItem struct {
+	productID int
 	variantID int
 	quantity  int
 	price     int64
@@ -154,7 +157,7 @@ func (o *Order) MarkPaid(now time.Time) error {
 // Fails if:
 //   - already cancelled
 //   - already paid
-func (o *Order) Cancel() error {
+func (o *Order) Cancel(now time.Time) error {
 	if o.status == OrderStatusCancelled {
 		return ErrOrderAlreadyCancelled
 	}
@@ -168,6 +171,7 @@ func (o *Order) Cancel() error {
 	}
 
 	o.status = OrderStatusCancelled
+	o.cancelledAt = &now
 
 	o.incrementVersion()
 	o.addEvent(NewOrderCancelled(o.id))

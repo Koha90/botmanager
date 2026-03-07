@@ -36,6 +36,14 @@ func NewProductVariantService(
 	events EventBus,
 	logger *slog.Logger,
 ) *ProductVariantService {
+	if repo == nil {
+		panic("service: ProductVariantService is nil")
+	}
+
+	if events == nil {
+		panic("service: EventBus is nil")
+	}
+
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -48,7 +56,7 @@ func NewProductVariantService(
 
 // CreateVariant creates a new product variant
 // and persists it.
-func (s *ProductVariantService) CreateVariant(
+func (s *ProductVariantService) Create(
 	ctx context.Context,
 	packSize string,
 	districtID int,

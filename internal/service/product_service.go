@@ -7,15 +7,6 @@ import (
 	"botmanager/internal/domain"
 )
 
-type ProductRepository interface {
-	Save(ctx context.Context, p *domain.Product) error
-	ByID(ctx context.Context, id int) (*domain.Product, error)
-}
-
-type productReader interface {
-	ByID(ctx context.Context, id int) (*domain.Product, error)
-}
-
 type ProductService struct {
 	repo   ProductRepository
 	tx     TxManager
@@ -25,25 +16,37 @@ type ProductService struct {
 
 // NewProductService creates a new ProductService instance.
 //
-// lgger must not be nil.
+// logger may be nil, in that case slog.Default() is used.
 func NewProductService(
-	r ProductRepository,
+	repo ProductRepository,
 	tx TxManager,
 	bus EventBus,
 	logger *slog.Logger,
 ) *ProductService {
+	if repo == nil {
+		panic("service: ProductRepository is nil")
+	}
+
+	if tx == nil {
+		panic("service: TxManager is nil")
+	}
+
+	if bus == nil {
+		panic("service: EventBus is nil")
+	}
+
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &ProductService{
-		repo:   r,
+		repo:   repo,
 		tx:     tx,
 		bus:    bus,
 		logger: logger,
 	}
 }
 
-func (s *ProductService) CreateProduct(
+func (s *ProductService) Create(
 	ctx context.Context,
 	name string,
 	categoryID int,

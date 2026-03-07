@@ -7,13 +7,6 @@ import (
 	"botmanager/internal/domain"
 )
 
-// UserRepository defines persistence operations
-// required by UserService.
-type UserRepository interface {
-	Save(ctx context.Context, u *domain.User) error
-	ByID(ctx context.Context, id int) (*domain.User, error)
-}
-
 // UserService orchestrates user-related use cases.
 //
 // It coordinates:
@@ -39,6 +32,17 @@ func NewUserService(
 	bus EventBus,
 	logger *slog.Logger,
 ) *UserService {
+	if repo == nil {
+		panic("service: UserRepository is nil")
+	}
+
+	if tx == nil {
+		panic("service: TxManager is nil")
+	}
+
+	if bus == nil {
+		panic("service: EventBus is nil")
+	}
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -52,7 +56,7 @@ func NewUserService(
 }
 
 // CreateUser creates a new application user.
-func (s *UserService) CreateUser(
+func (s *UserService) Create(
 	ctx context.Context,
 	params domain.NewUserParams,
 ) (*domain.User, error) {
