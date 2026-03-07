@@ -219,4 +219,127 @@ func TestUser_EnableDisable(t *testing.T) {
 }
 
 func TestNewUser_TelegramAuth(t *testing.T) {
+	tgID := int64(123456789)
+	tgName := "koha"
+
+	u, err := NewUser(NewUserParams{
+		TgID:   &tgID,
+		TgName: tgName,
+	})
+	require.NoError(t, err)
+
+	gotID, ok := u.TelegramID()
+	require.True(t, ok)
+	require.Equal(t, tgID, gotID)
+
+	gotName, ok := u.TelegramName()
+	require.True(t, ok)
+	require.Equal(t, tgName, gotName)
+
+	require.Equal(t, RoleCustomer, u.role)
+	require.False(t, u.isEnabled)
+}
+
+func TestNewUser_AddBalance(t *testing.T) {
+	u, err := NewUser(NewUserParams{
+		Email:        "a@a.com",
+		PasswordHash: "hash",
+	})
+	require.NoError(t, err)
+
+	err = u.AddBalance(500)
+	require.NoError(t, err)
+	require.EqualValues(t, 500, u.balance)
+}
+
+func TestUser_AddBalance_InvalidAmount(t *testing.T) {
+	tests := []struct {
+		name   string
+		amount int64
+	}{
+		{name: "zero", amount: 0},
+		{name: "negative", amount: -100},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u, err := NewUser(NewUserParams{
+				Email:        "a@a.com",
+				PasswordHash: "hash",
+			})
+			require.NoError(t, err)
+
+			err = u.AddBalance(tt.amount)
+			require.ErrorIs(t, err, ErrInvalidAmount)
+			require.EqualValues(t, 0, u.balance)
+		})
+	}
+}
+
+func TestUser_DeductBalance(t *testing.T) {
+	u, err := NewUser(NewUserParams{
+		Email:        "a@a.com",
+		PasswordHash: "hash",
+	})
+	require.NoError(t, err)
+
+	err = u.AddBalance(500)
+	require.NoError(t, err)
+
+	err = u.DeductBalance(200)
+	require.NoError(t, err)
+	require.EqualValues(t, 300, u.balance)
+}
+
+func TestUser_DeductBalance_InvalidAmount(t *testing.T) {
+	tests := []struct {
+		name   string
+		amount int64
+	}{
+		{name: "zero", amount: 0},
+		{name: "negative", amount: -50},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u, err := NewUser(NewUserParams{
+				Email:        "a@a.com",
+				PasswordHash: "hash",
+			})
+			require.NoError(t, err)
+
+			err = u.DeductBalance(tt.amount)
+			require.ErrorIs(t, err, ErrInvalidAmount)
+		})
+	}
+}
+
+func TestUser_DeductBalance_InsufficientBalance(t *testing.T) {
+	u, err := NewUser(NewUserParams{
+		Email:        "a@a.com",
+		PasswordHash: "hash",
+	})
+	require.NoError(t, err)
+
+	err = u.AddBalance(100)
+	require.NoError(t, err)
+
+	err = u.DeductBalance(200)
+	require.ErrorIs(t, err, ErrInsufficientBalance)
+	require.EqualValues(t, 100, u.balance)
+}
+
+func TestUser_GrantAdminAccess_CustomerIgnored(t *testing.T) {
+	now := time.Now()
+
+	u, err := NewUser(NewUserParams{
+		Email:        "user@a.com",
+		PasswordHash: "hash",
+	})
+	require.NoError(t, err)
+
+	u.GrantAdminAccess(now.Add(time.Hour))
+
+	require.Nil(t, u.adminAccessExpiresAt)
+	require.False(t, u.CanUseAdminPanel(now))
 }
